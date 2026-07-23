@@ -12,6 +12,8 @@ import { notificationRouter } from './routes/notificationRoutes.js';
 import { searchRouter } from './routes/searchRoutes.js';
 import { dashboardRouter } from './routes/dashboardRoutes.js';
 
+console.log("DATABASE_URL =", process.env.DATABASE_URL);
+console.log("DIRECT_URL =", process.env.DIRECT_URL);
 export const app = express();
 app.use(helmet());
 app.use(cors({ origin: env.corsOrigin, credentials: true }));
