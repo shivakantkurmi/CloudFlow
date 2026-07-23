@@ -1,0 +1,14 @@
+import { useEffect } from 'react';
+import { Navigate, Route, Routes } from 'react-router-dom';
+import { useDispatch, useSelector } from 'react-redux';
+import { ProtectedRoute } from './components/ProtectedRoute.jsx';
+import { AuthPage } from './pages/AuthPage.jsx';
+import { DashboardPage } from './pages/DashboardPage.jsx';
+import { ProjectsPage } from './pages/ProjectsPage.jsx';
+import { ProjectDetailPage } from './pages/ProjectDetailPage.jsx';
+import { fetchCurrentUser } from './store/authSlice.js';
+import { connectSocket, disconnectSocket } from './services/socketClient.js';
+import { removeRealtimeTask, upsertRealtimeTask } from './store/taskSlice.js';
+import { receiveComment, removeCommentRealtime, receiveAttachment, removeAttachmentRealtime } from './store/collaborationSlice.js';
+import { fetchNotifications, receiveNotification } from './store/notificationSlice.js';
+export const App = () => { const dispatch = useDispatch(); const token = useSelector((state) => state.auth.accessToken); useEffect(() => { if (token) { dispatch(fetchCurrentUser()); dispatch(fetchNotifications()); } }, [dispatch, token]); useEffect(() => { if (!token) { disconnectSocket(); return undefined; } const socket = connectSocket(token); const upsert = (task) => dispatch(upsertRealtimeTask(task)); const remove = (task) => dispatch(removeRealtimeTask(task)); const onCommentAdded = (comment) => dispatch(receiveComment(comment)); const onCommentDeleted = (comment) => dispatch(removeCommentRealtime(comment)); const onAttachmentAdded = (attachment) => dispatch(receiveAttachment(attachment)); const onAttachmentDeleted = (attachment) => dispatch(removeAttachmentRealtime(attachment)); const onNotification = (notif) => dispatch(receiveNotification(notif)); socket.on('task:created', upsert); socket.on('task:updated', upsert); socket.on('task:deleted', remove); socket.on('comment:added', onCommentAdded); socket.on('comment:deleted', onCommentDeleted); socket.on('attachment:added', onAttachmentAdded); socket.on('attachment:deleted', onAttachmentDeleted); socket.on('notification:new', onNotification); return () => { socket.off('task:created', upsert); socket.off('task:updated', upsert); socket.off('task:deleted', remove); socket.off('comment:added', onCommentAdded); socket.off('comment:deleted', onCommentDeleted); socket.off('attachment:added', onAttachmentAdded); socket.off('attachment:deleted', onAttachmentDeleted); socket.off('notification:new', onNotification); }; }, [dispatch, token]); return <Routes><Route path="/login" element={<AuthPage />} /><Route path="/register" element={<AuthPage isRegister />} /><Route element={<ProtectedRoute />}><Route path="/" element={<ProjectsPage />} /><Route path="/projects/:id" element={<ProjectDetailPage />} /><Route path="/dashboard" element={<DashboardPage />} /></Route><Route path="*" element={<Navigate to="/" replace />} /></Routes>; };

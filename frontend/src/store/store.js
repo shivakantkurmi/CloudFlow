@@ -1,0 +1,9 @@
+import { configureStore } from '@reduxjs/toolkit';
+import { injectStore } from './injectStore.js';
+import authReducer from './authSlice.js';
+import projectReducer from './projectSlice.js';
+import taskReducer from './taskSlice.js';
+import collaborationReducer from './collaborationSlice.js';
+import notificationReducer from './notificationSlice.js';
+export const store = configureStore({ reducer: { auth: authReducer, projects: projectReducer, tasks: taskReducer, collaboration: collaborationReducer, notifications: notificationReducer } });
+injectStore(store);

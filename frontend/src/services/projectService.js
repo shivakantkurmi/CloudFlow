@@ -1,0 +1,10 @@
+import apiClient from './apiClient.js';
+const unwrap = (response) => response.data.data;
+export const getProjects = () => apiClient.get('/projects').then(unwrap);
+export const getProject = (id) => apiClient.get(`/projects/${id}`).then(unwrap);
+export const createProject = (payload) => apiClient.post('/projects', payload).then(unwrap);
+export const updateProject = ({ id, ...payload }) => apiClient.put(`/projects/${id}`, payload).then(unwrap);
+export const deleteProject = (id) => apiClient.delete(`/projects/${id}`).then(unwrap);
+export const getMembers = (id) => apiClient.get(`/projects/${id}/members`).then(unwrap);
+export const addMember = ({ id, ...payload }) => apiClient.post(`/projects/${id}/members`, payload).then(unwrap);
+export const removeMember = ({ id, userId }) => apiClient.delete(`/projects/${id}/members/${userId}`).then(unwrap);
