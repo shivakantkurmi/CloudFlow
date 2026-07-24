@@ -5,6 +5,7 @@ import { useForm } from 'react-hook-form';
 import { toast } from 'react-toastify';
 import { getFriendlyErrorMessage } from '../utils/errorHandler.js';
 import { addProjectMember, deleteProject, fetchMembers, fetchProject, removeProjectMember, updateProject } from '../store/projectSlice.js';
+import { fetchTasks } from '../store/taskSlice.js';
 import { TaskManager } from '../components/TaskManager.jsx';
 import { KanbanBoard } from '../components/KanbanBoard.jsx';
 import { TaskDetailsModal } from '../components/TaskDetailsModal.jsx';
@@ -51,6 +52,9 @@ export const ProjectDetailPage = () => {
         navigate('/');
       });
     dispatch(fetchMembers(id))
+      .unwrap()
+      .catch(() => {});
+    dispatch(fetchTasks(id))
       .unwrap()
       .catch(() => {});
   }, [dispatch, id, navigate]);
