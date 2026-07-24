@@ -34,7 +34,7 @@ export const getUserOrganizations = async (req, res, next) => {
     const orgs = await prisma.organization.findMany({
       where: { members: { some: { userId } } },
       include: {
-        members: { where: { userId }, select: { role: true } },
+        members: { where: { userId }, select: { role: true, userId: true } },
         _count: { select: { members: true, projects: true } },
       },
     });

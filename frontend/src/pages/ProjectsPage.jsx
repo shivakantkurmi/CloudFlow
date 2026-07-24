@@ -34,7 +34,8 @@ export const ProjectsPage = () => {
     defaultValues: { visibility: 'PRIVATE' }
   });
 
-  const userRoleInOrg = currentOrg?.members?.find(m => m.userId === user?.id)?.role;
+  const userMember = currentOrg?.members?.find(m => m.userId === user?.id) || currentOrg?.members?.[0];
+  const userRoleInOrg = userMember?.role;
   const canCreateProject = userRoleInOrg === 'OWNER' || userRoleInOrg === 'ADMIN';
 
   useEffect(() => {
