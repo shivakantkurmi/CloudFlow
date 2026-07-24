@@ -5,5 +5,6 @@ import projectReducer from './projectSlice.js';
 import taskReducer from './taskSlice.js';
 import collaborationReducer from './collaborationSlice.js';
 import notificationReducer from './notificationSlice.js';
-export const store = configureStore({ reducer: { auth: authReducer, projects: projectReducer, tasks: taskReducer, collaboration: collaborationReducer, notifications: notificationReducer } });
+import orgReducer from './orgSlice.js';
+export const store = configureStore({ reducer: { auth: authReducer, projects: projectReducer, tasks: taskReducer, collaboration: collaborationReducer, notifications: notificationReducer, orgs: orgReducer } });
 injectStore(store);

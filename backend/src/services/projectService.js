@@ -2,115 +2,116 @@ import { prisma } from '../config/prisma.js';
 import { AppError } from '../utils/AppError.js';
 import { eventBus } from '../events/eventBus.js';
 
-const memberUserSelect = { id: true, email: true, firstName: true, lastName: true, avatar: true, role: true };
-const projectInclude = { owner: { select: memberUserSelect }, _count: { select: { members: true, tasks: true } } };
-const isSystemAdmin = (actor) => actor.role === 'ADMIN';
-const isManager = (membership) => membership?.role === 'ADMIN' || membership?.role === 'LEAD';
-
-const fetchMembership = (projectId, userId) => prisma.projectMember.findUnique({ where: { projectId_userId: { projectId, userId } } });
-
-const projectWhereFor = (id, actor) => ({
-  id,
-  status: { not: 'DELETED' },
-  ...(isSystemAdmin(actor) ? {} : { OR: [{ visibility: 'PUBLIC' }, { ownerId: actor.sub }, { members: { some: { userId: actor.sub } } }] }),
+const memberUserSelect = { id: true, email: true, firstName: true, lastName: true, avatar: true };
+const projectIncludeForActor = (actorId) => ({
+  organization: { select: { name: true } }, 
+  _count: { select: { members: true, tasks: true } },
+  members: { where: { userId: actorId }, select: { role: true } }
 });
 
-const getAccessibleProject = async (id, actor, include = projectInclude) => {
-  const project = await prisma.project.findFirst({ where: projectWhereFor(id, actor), include });
-  if (!project) throw new AppError('Project not found or is not accessible.', 404, 'PROJECT_NOT_FOUND');
-  return project;
+const serializeProject = (project) => {
+  const userRole = project.members?.[0]?.role;
+  return {
+    ...project,
+    memberCount: project._count?.members,
+    taskCount: project._count?.tasks,
+    userRole,
+    _count: undefined,
+    members: undefined,
+  };
 };
-
-const assertManager = async (project, actor) => {
-  if (isSystemAdmin(actor) || project.ownerId === actor.sub) return;
-  const membership = await fetchMembership(project.id, actor.sub);
-  if (!isManager(membership)) throw new AppError('Project manager permission is required.', 403, 'FORBIDDEN');
-};
-
-const assertMembership = async (project, actor) => {
-  if (isSystemAdmin(actor) || project.ownerId === actor.sub) return;
-  const membership = await fetchMembership(project.id, actor.sub);
-  if (!membership) throw new AppError('Project membership is required.', 403, 'FORBIDDEN');
-};
-
-const serializeProject = (project) => ({
-  ...project,
-  memberCount: project._count?.members,
-  taskCount: project._count?.tasks,
-  _count: undefined,
-});
 
 export const createProject = async (input, actor) => {
+  const { organizationId, ...rest } = input;
   const existing = await prisma.project.findUnique({ where: { key: input.key } });
-  if (existing) throw new AppError('This project key is already in use.', 409, 'DUPLICATE_ENTRY');
+  if (existing) throw new AppError('This project key is already in use.', 409);
 
   const project = await prisma.project.create({
     data: {
-      ...input,
-      ownerId: actor.sub,
-      members: { create: { userId: actor.sub, role: 'ADMIN' } },
+      ...rest,
+      organizationId,
+      members: { create: { userId: actor.id, role: 'PROJECT_MANAGER' } },
     },
-    include: projectInclude,
+    include: projectIncludeForActor(actor.id),
   });
   return serializeProject(project);
 };
 
-export const listProjects = async (actor, limit = 50) => {
+export const listProjects = async (actor, organizationId, limit = 50) => {
+  // If orgId is provided, verify user is in org, otherwise list all projects the user is in across orgs
+  const where = { status: { not: 'DELETED' } };
+  
+  if (organizationId) {
+    where.organizationId = organizationId;
+    const orgMember = await prisma.organizationMember.findUnique({
+      where: { organizationId_userId: { organizationId, userId: actor.id } }
+    });
+    if (!orgMember) throw new AppError('You do not have access to this organization.', 403);
+    if (orgMember.role !== 'OWNER' && orgMember.role !== 'ADMIN') {
+      where.OR = [{ visibility: 'PUBLIC' }, { members: { some: { userId: actor.id } } }];
+    }
+  } else {
+    // Orgs where user is OWNER/ADMIN
+    const adminOrgs = await prisma.organizationMember.findMany({
+      where: { userId: actor.id, role: { in: ['OWNER', 'ADMIN'] } },
+      select: { organizationId: true }
+    });
+    const adminOrgIds = adminOrgs.map(o => o.organizationId);
+    
+    where.OR = [
+      { organizationId: { in: adminOrgIds } },
+      { members: { some: { userId: actor.id } } }
+    ];
+  }
+
   const projects = await prisma.project.findMany({
-    where: {
-      status: { not: 'DELETED' },
-      ...(isSystemAdmin(actor) ? {} : { OR: [{ visibility: 'PUBLIC' }, { ownerId: actor.sub }, { members: { some: { userId: actor.sub } } }] }),
-    },
-    include: projectInclude,
+    where,
+    include: projectIncludeForActor(actor.id),
     orderBy: { updatedAt: 'desc' },
     take: limit,
   });
   return projects.map(serializeProject);
 };
 
-export const getProject = async (id, actor) => serializeProject(await getAccessibleProject(id, actor));
-
-export const updateProject = async (id, input, actor) => {
-  const project = await getAccessibleProject(id, actor);
-  await assertManager(project, actor);
-  return serializeProject(await prisma.project.update({ where: { id }, data: input, include: projectInclude }));
+export const getProject = async (id, actor) => {
+  const project = await prisma.project.findUnique({ where: { id }, include: projectIncludeForActor(actor.id) });
+  if (!project || project.status === 'DELETED') throw new AppError('Project not found.', 404);
+  return serializeProject(project);
 };
 
-export const deleteProject = async (id, actor) => {
-  const project = await getAccessibleProject(id, actor);
-  if (!isSystemAdmin(actor) && project.ownerId !== actor.sub) throw new AppError('Only the project owner can delete this project.', 403, 'FORBIDDEN');
+export const updateProject = async (id, input, actor) => {
+  return serializeProject(await prisma.project.update({ where: { id }, data: input, include: projectIncludeForActor(actor.id) }));
+};
+
+export const deleteProject = async (id) => {
   await prisma.project.update({ where: { id }, data: { status: 'DELETED' } });
 };
 
-export const listMembers = async (id, actor) => {
-  const project = await getAccessibleProject(id, actor);
-  await assertMembership(project, actor);
+export const listMembers = async (id) => {
   return prisma.projectMember.findMany({
-    where: { projectId: project.id },
+    where: { projectId: id },
     include: { user: { select: memberUserSelect } },
     orderBy: [{ role: 'asc' }, { joinedAt: 'asc' }],
   });
 };
 
-export const addMember = async (id, { email, role = 'MEMBER' }, actor) => {
-  const project = await getAccessibleProject(id, actor);
-  await assertManager(project, actor);
+export const addMember = async (id, { email, role = 'DEVELOPER' }, actor) => {
   const user = await prisma.user.findUnique({ where: { email }, select: { id: true, status: true } });
-  if (!user) throw new AppError('No user exists for this email address.', 404, 'USER_NOT_FOUND');
-  if (user.status !== 'ACTIVE') throw new AppError('Only active users can be added to projects.', 422, 'USER_INACTIVE');
+  if (!user) throw new AppError('No user exists for this email address.', 404);
+  if (user.status !== 'ACTIVE') throw new AppError('Only active users can be added to projects.', 422);
+  
   const membership = await prisma.projectMember.findUnique({ where: { projectId_userId: { projectId: id, userId: user.id } } });
-  if (membership) throw new AppError('This user is already a project member.', 409, 'DUPLICATE_ENTRY');
+  if (membership) throw new AppError('This user is already a project member.', 409);
+  
   const newMember = await prisma.projectMember.create({ data: { projectId: id, userId: user.id, role }, include: { user: { select: memberUserSelect } } });
-  eventBus.emit('member:added', { projectId: id, userId: user.id, role, actor });
+  eventBus.emit('member:added', { projectId: id, userId: user.id, role, actorId: actor.id });
   return newMember;
 };
 
 export const removeMember = async (id, userId, actor) => {
-  const project = await getAccessibleProject(id, actor);
-  await assertManager(project, actor);
-  if (project.ownerId === userId) throw new AppError('The project owner cannot be removed.', 422, 'OWNER_MEMBERSHIP_REQUIRED');
-  const membership = await fetchMembership(id, userId);
-  if (!membership) throw new AppError('Project member not found.', 404, 'MEMBER_NOT_FOUND');
+  const membership = await prisma.projectMember.findUnique({ where: { projectId_userId: { projectId: id, userId } } });
+  if (!membership) throw new AppError('Project member not found.', 404);
+  
   await prisma.projectMember.delete({ where: { id: membership.id } });
-  eventBus.emit('member:removed', { projectId: id, userId, actor });
+  eventBus.emit('member:removed', { projectId: id, userId, actorId: actor.id });
 };

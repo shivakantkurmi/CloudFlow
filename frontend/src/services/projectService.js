@@ -1,6 +1,6 @@
 import apiClient from './apiClient.js';
 const unwrap = (response) => response.data.data;
-export const getProjects = () => apiClient.get('/projects').then(unwrap);
+export const getProjects = (organizationId) => apiClient.get('/projects', { params: { organizationId } }).then(unwrap);
 export const getProject = (id) => apiClient.get(`/projects/${id}`).then(unwrap);
 export const createProject = (payload) => apiClient.post('/projects', payload).then(unwrap);
 export const updateProject = ({ id, ...payload }) => apiClient.put(`/projects/${id}`, payload).then(unwrap);

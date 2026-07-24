@@ -18,13 +18,12 @@ model User {
   firstName             String
   lastName              String
   avatar                String?     // URL or path to avatar
-  role                  Role        @default(MEMBER)
   status                UserStatus  @default(ACTIVE)
   createdAt             DateTime    @default(now())
   updatedAt             DateTime    @updatedAt
 
   // Relations
-  ownedProjects         Project[]   @relation("owner")
+  organizationMemberships OrganizationMember[]
   projectMemberships    ProjectMember[]
   assignedTasks         Task[]      @relation("assignee")
   createdTasks          Task[]      @relation("taskCreator")
@@ -50,16 +49,40 @@ model RefreshToken {
   @@index([expiresAt])
 }
 
-enum Role {
-  ADMIN
-  PROJECT_MANAGER
-  MEMBER
-}
-
 enum UserStatus {
   ACTIVE
   INACTIVE
   SUSPENDED
+}
+
+// ==================== ORGANIZATIONS ====================
+model Organization {
+  id          String               @id @default(cuid())
+  name        String
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+  members     OrganizationMember[]
+  projects    Project[]
+}
+
+model OrganizationMember {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role           OrgRole      @default(MEMBER)
+  joinedAt       DateTime     @default(now())
+
+  @@unique([organizationId, userId])
+  @@index([organizationId])
+  @@index([userId])
+}
+
+enum OrgRole {
+  OWNER
+  ADMIN
+  MEMBER
 }
 
 // ==================== PROJECTS ====================
@@ -68,8 +91,8 @@ model Project {
   name                  String
   description           String?
   key                   String      @unique  // Like "CLOUD" for CloudFlow
-  ownerId               String
-  owner                 User        @relation("owner", fields: [ownerId], references: [id], onDelete: Cascade)
+  organizationId        String
+  organization          Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   status                ProjectStatus @default(ACTIVE)
   visibility            ProjectVisibility @default(PRIVATE)
   createdAt             DateTime    @default(now())
@@ -80,7 +103,7 @@ model Project {
   tasks                 Task[]
   activityLogs          ActivityLog[]
 
-  @@index([ownerId])
+  @@index([organizationId])
   @@index([status])
 }
 
@@ -102,7 +125,7 @@ model ProjectMember {
   project               Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
   userId                String
   user                  User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  role                  ProjectRole @default(MEMBER)
+  role                  ProjectRole @default(DEVELOPER)
   joinedAt              DateTime    @default(now())
 
   @@unique([projectId, userId])
@@ -111,9 +134,10 @@ model ProjectMember {
 }
 
 enum ProjectRole {
-  ADMIN
-  LEAD
-  MEMBER
+  PROJECT_MANAGER
+  DEVELOPER
+  TESTER
+  VIEWER
 }
 
 // ==================== TASKS ====================

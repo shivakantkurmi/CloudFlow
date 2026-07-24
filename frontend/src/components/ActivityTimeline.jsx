@@ -3,40 +3,35 @@ import { getProjectActivities } from '../services/activityService.js';
 import { toast } from 'react-toastify';
 import { getFriendlyErrorMessage } from '../utils/errorHandler.js';
 
-const ActionIcon = ({ action }) => {
-  switch (action) {
-    case 'CREATED': return <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 shadow-sm">✨</div>;
-    case 'UPDATED': return <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-blue-600 shadow-sm">📝</div>;
-    case 'DELETED': return <div className="flex h-8 w-8 items-center justify-center rounded-full bg-red-100 text-red-600 shadow-sm">🗑️</div>;
-    case 'COMMENTED': return <div className="flex h-8 w-8 items-center justify-center rounded-full bg-purple-100 text-purple-600 shadow-sm">💬</div>;
-    case 'INVITED': return <div className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-100 text-indigo-600 shadow-sm">👋</div>;
-    case 'LEFT': return <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-slate-600 shadow-sm">🚪</div>;
-    default: return <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-slate-600 shadow-sm">📌</div>;
-  }
+const ACTION_CONFIG = {
+  CREATED: { color: 'bg-emerald-500/15 text-emerald-500', dot: 'bg-emerald-500', emoji: '✨' },
+  UPDATED: { color: 'bg-blue-500/15 text-blue-500', dot: 'bg-blue-500', emoji: '✏️' },
+  DELETED: { color: 'bg-rose-500/15 text-rose-500', dot: 'bg-rose-500', emoji: '🗑️' },
+  COMMENTED: { color: 'bg-violet-500/15 text-violet-500', dot: 'bg-violet-500', emoji: '💬' },
+  INVITED: { color: 'bg-primary-DEFAULT/15 text-primary-DEFAULT', dot: 'bg-primary-DEFAULT', emoji: '👋' },
+  LEFT: { color: 'bg-slate-400/15 text-cf-3', dot: 'bg-slate-400', emoji: '🚪' },
+  DEFAULT: { color: 'bg-slate-400/15 text-cf-3', dot: 'bg-slate-500', emoji: '📌' },
 };
 
 const ActivityMessage = ({ log }) => {
-  const actorName = <span className="font-semibold text-slate-900">{log.user.firstName} {log.user.lastName}</span>;
-  
+  const actor = <span className="font-semibold text-cf">{log.user.firstName} {log.user.lastName}</span>;
+
   if (log.entityType === 'task') {
-    const taskName = <span className="font-medium text-slate-800">"{log.newValues?.title || log.oldValues?.title || 'Unknown Task'}"</span>;
-    switch (log.action) {
-      case 'CREATED': return <>{actorName} created task {taskName}</>;
-      case 'UPDATED': 
-        if (log.newValues?.status) return <>{actorName} moved task {taskName} to <span className="rounded bg-slate-100 px-1.5 py-0.5 text-xs font-semibold">{log.newValues.status}</span></>;
-        return <>{actorName} updated task {taskName}</>;
-      case 'DELETED': return <>{actorName} deleted task {taskName}</>;
-      case 'COMMENTED': return <>{actorName} commented on task {taskName}</>;
-      default: return <>{actorName} performed {log.action} on a task</>;
+    const title = log.newValues?.title || log.oldValues?.title || 'a task';
+    const taskRef = <span className="font-medium text-cf-2">"{title}"</span>;
+    if (log.action === 'CREATED') return <>{actor} created task {taskRef}</>;
+    if (log.action === 'UPDATED') {
+      if (log.newValues?.status) return <>{actor} moved {taskRef} to <span className="inline-flex items-center rounded-md bg-cf-elevated px-1.5 py-0.5 text-[11px] font-semibold text-cf">{log.newValues.status.replace('_', ' ')}</span></>;
+      return <>{actor} updated task {taskRef}</>;
     }
-  } else if (log.entityType === 'member') {
-    switch (log.action) {
-      case 'INVITED': return <>{actorName} joined the project as {log.newValues?.role || 'MEMBER'}</>;
-      case 'LEFT': return <>{actorName} left the project</>;
-      default: return <>{actorName} modified membership</>;
-    }
+    if (log.action === 'DELETED') return <>{actor} deleted task {taskRef}</>;
+    if (log.action === 'COMMENTED') return <>{actor} commented on {taskRef}</>;
   }
-  return <>{actorName} performed {log.action}</>;
+  if (log.entityType === 'member') {
+    if (log.action === 'INVITED') return <>{actor} joined as <span className="font-semibold">{log.newValues?.role ?? 'member'}</span></>;
+    if (log.action === 'LEFT') return <>{actor} left the project</>;
+  }
+  return <>{actor} performed {log.action}</>;
 };
 
 export const ActivityTimeline = ({ projectId }) => {
@@ -44,42 +39,70 @@ export const ActivityTimeline = ({ projectId }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchActivities = async () => {
-      try {
-        const data = await getProjectActivities(projectId);
-        setActivities(data);
-      } catch (error) {
-        toast.error(getFriendlyErrorMessage(error));
-      } finally {
-        setLoading(false);
-      }
+    const fetch = async () => {
+      try { setActivities(await getProjectActivities(projectId)); }
+      catch (error) { toast.error(getFriendlyErrorMessage(error)); }
+      finally { setLoading(false); }
     };
-    fetchActivities();
+    fetch();
   }, [projectId]);
 
-  if (loading) return <div className="p-8 text-center text-slate-500">Loading timeline...</div>;
-  if (activities.length === 0) return <div className="rounded-xl border border-dashed p-10 text-center text-slate-500">No activity yet.</div>;
-
-  return (
-    <section className="mt-6 rounded-xl bg-white p-6 shadow-sm">
-      <h2 className="mb-6 text-xl font-bold">Activity Timeline</h2>
-      <div className="relative border-l border-slate-200 pl-4">
-        {activities.map((log) => (
-          <div key={log.id} className="mb-6 flex items-start gap-4 last:mb-0">
-            <div className="absolute -left-4 rounded-full border-4 border-white bg-white">
-              <ActionIcon action={log.action} />
-            </div>
-            <div className="flex-1">
-              <p className="text-sm text-slate-700">
-                <ActivityMessage log={log} />
-              </p>
-              <span className="mt-1 block text-xs text-slate-400">
-                {new Date(log.createdAt).toLocaleString()}
-              </span>
+  if (loading) {
+    return (
+      <div className="space-y-4 animate-pulse">
+        {[...Array(5)].map((_, i) => (
+          <div key={i} className="flex gap-4">
+            <div className="h-8 w-8 rounded-full bg-cf-elevated shrink-0" />
+            <div className="flex-1 space-y-2 pt-1">
+              <div className="h-4 rounded-md bg-cf-elevated w-3/4" />
+              <div className="h-3 rounded-md bg-cf-elevated w-1/3" />
             </div>
           </div>
         ))}
       </div>
-    </section>
+    );
+  }
+
+  if (activities.length === 0) {
+    return (
+      <div className="flex flex-col items-center py-16 text-center rounded-2xl border border-dashed border-cf-strong">
+        <span className="text-4xl mb-3">📋</span>
+        <p className="text-sm font-medium text-cf">No activity yet</p>
+        <p className="text-xs text-cf-3 mt-1">Actions on this project will appear here.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative">
+      {/* Vertical line */}
+      <div className="absolute left-3.5 top-4 bottom-4 w-px bg-cf-elevated" />
+
+      <div className="space-y-1">
+        {activities.map((log) => {
+          const config = ACTION_CONFIG[log.action] ?? ACTION_CONFIG.DEFAULT;
+          return (
+            <div key={log.id} className="flex items-start gap-4 pl-0 py-2 hover:bg-cf-elevated rounded-xl px-3 transition-colors">
+              {/* Dot */}
+              <div className="relative z-10 shrink-0">
+                <div className={`flex h-7 w-7 items-center justify-center rounded-full text-sm ${config.color}`}>
+                  {config.emoji}
+                </div>
+              </div>
+
+              {/* Content */}
+              <div className="flex-1 min-w-0">
+                <p className="text-sm text-cf-2 leading-snug">
+                  <ActivityMessage log={log} />
+                </p>
+                <p className="mt-0.5 text-[10px] text-cf-3">
+                  {new Date(log.createdAt).toLocaleString()}
+                </p>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 };

@@ -8,7 +8,10 @@ export const authenticate = (req, _res, next) => {
   }
 
   try {
-    req.auth = verifyAccessToken(token);
+    const payload = verifyAccessToken(token);
+    // JWT uses 'sub' for the user ID, but our controllers/services expect .id
+    req.auth = { ...payload, id: payload.sub };
+    req.user = req.auth;
     return next();
   } catch {
     return next(new AppError('Your access token is invalid or expired.', 401, 'UNAUTHORIZED'));

@@ -1,23 +1,36 @@
 import { prisma } from '../config/prisma.js';
 
-const isSystemAdmin = (actor) => actor.role === 'ADMIN';
-
-const projectWhereClause = (actor) => {
-  if (isSystemAdmin(actor)) {
-    return { status: { not: 'DELETED' } };
+const projectWhereClause = async (actor, organizationId) => {
+  const where = { status: { not: 'DELETED' } };
+  
+  if (organizationId) {
+    where.organizationId = organizationId;
+    const orgMember = await prisma.organizationMember.findUnique({
+      where: { organizationId_userId: { organizationId, userId: actor.id } }
+    });
+    if (!orgMember) return { id: 'NO_ACCESS' };
+    if (orgMember.role !== 'OWNER' && orgMember.role !== 'ADMIN') {
+      where.OR = [{ visibility: 'PUBLIC' }, { members: { some: { userId: actor.id } } }];
+    }
+  } else {
+    // Orgs where user is OWNER/ADMIN
+    const adminOrgs = await prisma.organizationMember.findMany({
+      where: { userId: actor.id, role: { in: ['OWNER', 'ADMIN'] } },
+      select: { organizationId: true }
+    });
+    const adminOrgIds = adminOrgs.map(o => o.organizationId);
+    
+    where.OR = [
+      { organizationId: { in: adminOrgIds } },
+      { members: { some: { userId: actor.id } } }
+    ];
   }
-  return {
-    status: { not: 'DELETED' },
-    OR: [
-      { visibility: 'PUBLIC' },
-      { ownerId: actor.sub },
-      { members: { some: { userId: actor.sub } } }
-    ]
-  };
+  return where;
 };
 
-export const getDashboardStats = async (actor) => {
-  const accessibleProjectsWhere = projectWhereClause(actor);
+export const getDashboardStats = async (actor, organizationId) => {
+  const accessibleProjectsWhere = await projectWhereClause(actor, organizationId);
+  const taskWhere = { assigneeId: actor.id, project: accessibleProjectsWhere };
 
   const [
     projectCount,
@@ -27,10 +40,10 @@ export const getDashboardStats = async (actor) => {
     recentActivity
   ] = await Promise.all([
     prisma.project.count({ where: accessibleProjectsWhere }),
-    prisma.task.count({ where: { assigneeId: actor.sub } }),
-    prisma.task.count({ where: { assigneeId: actor.sub, status: { not: 'COMPLETED' } } }),
+    prisma.task.count({ where: taskWhere }),
+    prisma.task.count({ where: { ...taskWhere, status: { not: 'COMPLETED' } } }),
     prisma.task.findMany({
-      where: { assigneeId: actor.sub, status: { not: 'COMPLETED' } },
+      where: { ...taskWhere, status: { not: 'COMPLETED' } },
       orderBy: [{ priority: 'desc' }, { dueDate: 'asc' }],
       take: 5,
       include: { project: { select: { key: true, name: true } } }
@@ -43,11 +56,9 @@ export const getDashboardStats = async (actor) => {
     })
   ]);
 
-  // Grouping manually since prisma group by doesn't easily return zero for missing enums
-  // But we can just use groupBy
   const groupedStatuses = await prisma.task.groupBy({
     by: ['status'],
-    where: { assigneeId: actor.sub },
+    where: taskWhere,
     _count: { status: true }
   });
 

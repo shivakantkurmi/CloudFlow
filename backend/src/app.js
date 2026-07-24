@@ -5,6 +5,7 @@ import rateLimit from 'express-rate-limit';
 import { env } from './config/env.js';
 import { errorHandler, notFound } from './middleware/errorMiddleware.js';
 import { authRouter } from './routes/authRoutes.js';
+import orgRouter from './routes/orgRoutes.js';
 import { projectRouter } from './routes/projectRoutes.js';
 import { taskRouter } from './routes/taskRoutes.js';
 import { attachmentRouter, commentRouter } from './routes/collaborationRoutes.js';
@@ -12,8 +13,7 @@ import { notificationRouter } from './routes/notificationRoutes.js';
 import { searchRouter } from './routes/searchRoutes.js';
 import { dashboardRouter } from './routes/dashboardRoutes.js';
 
-console.log("DATABASE_URL =", process.env.DATABASE_URL);
-console.log("DIRECT_URL =", process.env.DIRECT_URL);
+
 export const app = express();
 app.use(helmet());
 app.use(cors({ origin: env.corsOrigin, credentials: true }));
@@ -21,6 +21,7 @@ app.use(express.json({ limit: '1mb' }));
 app.use(rateLimit({ windowMs: env.rateLimitWindowMs, limit: env.rateLimitMax, standardHeaders: 'draft-7', legacyHeaders: false }));
 app.get('/health', (_req, res) => res.status(200).json({ success: true, data: { status: 'ok' } }));
 app.use('/api/auth', authRouter);
+app.use('/api/orgs', orgRouter);
 app.use('/api/projects', projectRouter);
 app.use('/api/projects/:projectId/tasks', taskRouter);
 app.use('/api/tasks/:taskId/comments', commentRouter);

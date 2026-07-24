@@ -5,21 +5,44 @@ import { fetchComments, addComment, deleteComment, fetchAttachments, uploadAttac
 import { getAttachmentDownloadUrl } from '../services/collaborationService.js';
 import { getFriendlyErrorMessage } from '../utils/errorHandler.js';
 
+const PRIORITY_BADGE = {
+  CRITICAL: 'cf-badge-critical',
+  HIGH: 'cf-badge-high',
+  MEDIUM: 'cf-badge-medium',
+  LOW: 'cf-badge-low',
+};
+
+const STATUS_BADGE = {
+  TODO: 'cf-badge-todo',
+  IN_PROGRESS: 'cf-badge-in-progress',
+  TESTING: 'cf-badge-testing',
+  COMPLETED: 'cf-badge-completed',
+};
+
 export const TaskDetailsModal = ({ taskId, onClose }) => {
   const dispatch = useDispatch();
   const task = useSelector(state => state.tasks.items.find(t => t.id === taskId));
   const { comments, attachments, status } = useSelector(state => state.collaboration);
   const currentUser = useSelector(state => state.auth.user);
-  
+
   const [commentText, setCommentText] = useState('');
+  const [activeTab, setActiveTab] = useState('comments');
   const fileInputRef = useRef(null);
-  
+  const textareaRef = useRef(null);
+
   useEffect(() => {
     dispatch(setCurrentTask(taskId));
     dispatch(fetchComments(taskId));
     dispatch(fetchAttachments(taskId));
     return () => dispatch(clearCurrentTask());
   }, [dispatch, taskId]);
+
+  // Close on Escape
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
 
   const handleAddComment = async (e) => {
     e.preventDefault();
@@ -47,117 +70,165 @@ export const TaskDetailsModal = ({ taskId, onClose }) => {
 
   if (!task) return null;
 
+  const initials = (user) => `${user.firstName?.[0] ?? ''}${user.lastName?.[0] ?? ''}`;
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="flex max-h-[90vh] w-full max-w-4xl flex-col rounded-xl bg-white shadow-xl">
-        <header className="flex items-center justify-between border-b p-5">
-          <div>
-            <h2 className="text-xl font-bold">{task.title}</h2>
-            <p className="mt-1 flex gap-2 text-sm text-slate-500">
-              <span className="rounded bg-slate-100 px-2 py-0.5">{task.status}</span>
-              <span className="rounded bg-slate-100 px-2 py-0.5">{task.priority} Priority</span>
-            </p>
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+      <div className="flex w-full sm:max-w-4xl flex-col rounded-none sm:rounded-2xl bg-cf-card border border-cf shadow-elevated overflow-hidden max-h-screen sm:max-h-[90vh] animate-slide-up">
+
+        {/* Header */}
+        <header className="flex items-start gap-4 border-b border-cf p-5 sm:p-6">
+          <div className="flex-1 min-w-0">
+            <div className="flex flex-wrap items-center gap-2 mb-2">
+              <span className={`${STATUS_BADGE[task.status] ?? 'cf-badge-todo'}`}>{task.status.replace('_', ' ')}</span>
+              <span className={`${PRIORITY_BADGE[task.priority] ?? 'cf-badge-low'}`}>{task.priority}</span>
+              {task.labels.map(label => (
+                <span key={label.id} style={{ backgroundColor: label.color + '22', color: label.color }} className="cf-badge text-[10px] font-medium rounded-full">
+                  {label.label}
+                </span>
+              ))}
+            </div>
+            <h2 className="text-lg font-bold text-cf leading-tight">{task.title}</h2>
+            {task.assignee && (
+              <p className="mt-1 text-xs text-cf-3">
+                Assigned to <span className="font-medium text-cf-2">{task.assignee.firstName} {task.assignee.lastName}</span>
+                {task.dueDate && <> · Due <span className="font-medium">{new Date(task.dueDate).toLocaleDateString()}</span></>}
+              </p>
+            )}
           </div>
-          <button onClick={onClose} className="rounded-full p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-700">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          <button onClick={onClose} className="cf-btn-ghost p-2 rounded-full shrink-0">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </header>
-        
-        <div className="flex-1 overflow-y-auto p-5">
-          <div className="mb-6">
-            <h3 className="text-sm font-semibold text-slate-800">Description</h3>
-            <p className="mt-2 whitespace-pre-wrap rounded-lg bg-slate-50 p-4 text-sm text-slate-700">{task.description || 'No description provided.'}</p>
+
+        {/* Description */}
+        {task.description && (
+          <div className="px-5 sm:px-6 py-4 border-b border-cf">
+            <p className="text-xs font-semibold uppercase tracking-wider text-cf-3 mb-2">Description</p>
+            <p className="whitespace-pre-wrap text-sm text-cf-2 leading-relaxed">{task.description}</p>
           </div>
-          
-          <div className="grid gap-8 lg:grid-cols-2">
-            {/* Attachments Section */}
-            <section>
-              <div className="mb-3 flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-slate-800">Attachments</h3>
-                <label className="cursor-pointer rounded-md bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-200">
-                  Upload File
-                  <input type="file" className="hidden" ref={fileInputRef} onChange={handleFileUpload} />
-                </label>
-              </div>
-              
-              <div className="flex flex-col gap-2">
-                {attachments.map(att => (
-                  <div key={att.id} className="flex items-center justify-between rounded-lg border border-slate-200 p-3">
-                    <div className="flex items-center gap-3 overflow-hidden">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-                      </div>
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-medium text-slate-900">{att.fileName}</p>
-                        <p className="text-xs text-slate-500">
-                          {(att.fileSize / 1024).toFixed(1)} KB • {new Date(att.uploadedAt).toLocaleDateString()} by {att.uploadedBy.firstName}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex shrink-0 items-center gap-2">
-                      <a href={getAttachmentDownloadUrl(taskId, att.id)} download={att.fileName} target="_blank" rel="noreferrer" className="rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-primary">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                      </a>
-                      {(currentUser?.id === att.uploadedBy.id || currentUser?.role === 'ADMIN') && (
-                        <button onClick={() => dispatch(deleteAttachment({ taskId, attachmentId: att.id }))} className="rounded p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600">
-                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-                        </button>
-                      )}
-                    </div>
+        )}
+
+        {/* Tabs */}
+        <div className="flex items-center gap-1 px-5 sm:px-6 pt-3 border-b border-cf">
+          {[
+            { id: 'comments', label: `Comments (${comments.length})` },
+            { id: 'attachments', label: `Attachments (${attachments.length})` },
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`px-3 pb-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
+                activeTab === tab.id
+                  ? 'border-primary-DEFAULT text-primary-DEFAULT dark:text-primary-dark'
+                  : 'border-transparent text-cf-3 hover:text-cf'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto p-5 sm:p-6">
+
+          {/* Comments tab */}
+          {activeTab === 'comments' && (
+            <div className="flex flex-col gap-4">
+              {comments.length === 0 && (
+                <p className="text-sm text-cf-3 text-center py-6">No comments yet. Start the conversation!</p>
+              )}
+              {comments.map(comment => (
+                <div key={comment.id} className="flex gap-3">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary-DEFAULT to-accent-violet text-xs font-bold text-white">
+                    {initials(comment.author)}
                   </div>
-                ))}
-                {attachments.length === 0 && <p className="rounded-lg border border-dashed p-4 text-center text-sm text-slate-500">No attachments yet.</p>}
-              </div>
-            </section>
-            
-            {/* Comments Section */}
-            <section className="flex flex-col">
-              <h3 className="mb-3 text-sm font-semibold text-slate-800">Comments</h3>
-              
-              <div className="flex flex-1 flex-col gap-4 overflow-y-auto">
-                {comments.map(comment => (
-                  <div key={comment.id} className="flex gap-3">
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 text-xs font-bold text-white shadow-sm">
-                      {comment.author.firstName[0]}{comment.author.lastName[0]}
+                  <div className="flex-1 bg-cf-elevated rounded-2xl rounded-tl-none p-3.5">
+                    <div className="flex items-baseline justify-between gap-2 mb-1.5">
+                      <span className="text-xs font-semibold text-cf">{comment.author.firstName} {comment.author.lastName}</span>
+                      <span className="text-[10px] text-cf-3">{new Date(comment.createdAt).toLocaleString()}</span>
                     </div>
-                    <div className="flex-1 rounded-2xl rounded-tl-none bg-slate-100 p-3">
-                      <div className="mb-1 flex items-center justify-between">
-                        <span className="text-sm font-semibold text-slate-900">{comment.author.firstName} {comment.author.lastName}</span>
-                        <span className="text-xs text-slate-500">{new Date(comment.createdAt).toLocaleString()}</span>
-                      </div>
-                      <p className="whitespace-pre-wrap text-sm text-slate-700">{comment.content}</p>
-                      {(currentUser?.id === comment.author.id || currentUser?.role === 'ADMIN') && (
-                        <button onClick={() => dispatch(deleteComment({ taskId, commentId: comment.id }))} className="mt-2 text-xs font-medium text-slate-400 hover:text-red-600">Delete</button>
-                      )}
-                    </div>
+                    <p className="text-sm text-cf-2 whitespace-pre-wrap leading-relaxed">{comment.content}</p>
+                    {currentUser?.id === comment.author.id && (
+                      <button onClick={() => dispatch(deleteComment({ taskId, commentId: comment.id }))} className="mt-2 text-[10px] text-cf-3 hover:text-rose-500 transition-colors">
+                        Delete
+                      </button>
+                    )}
                   </div>
-                ))}
-                {comments.length === 0 && <p className="text-sm text-slate-500">No comments yet.</p>}
-              </div>
-              
-              <form onSubmit={handleAddComment} className="mt-6 flex gap-3">
-                 <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 text-xs font-bold text-white shadow-sm">
-                   {currentUser?.firstName?.[0]}{currentUser?.lastName?.[0]}
-                 </div>
-                 <div className="flex-1">
+                </div>
+              ))}
+
+              {/* Comment input */}
+              <form onSubmit={handleAddComment} className="flex gap-3 mt-2">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary-DEFAULT to-accent-violet text-xs font-bold text-white">
+                  {initials(currentUser ?? { firstName: '?', lastName: '' })}
+                </div>
+                <div className="flex-1">
                   <textarea
+                    ref={textareaRef}
                     value={commentText}
-                    onChange={(e) => setCommentText(e.target.value)}
-                    placeholder="Write a comment..."
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm focus:border-primary focus:bg-white focus:outline-none focus:ring-1 focus:ring-primary"
+                    onChange={e => setCommentText(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter' && e.metaKey) handleAddComment(e); }}
+                    placeholder="Write a comment… (⌘+Enter to post)"
+                    className="cf-input resize-none"
                     rows="2"
                   />
                   <div className="mt-2 flex justify-end">
-                    <button type="submit" disabled={!commentText.trim()} className="rounded-lg bg-primary px-4 py-1.5 text-sm font-medium text-white shadow-sm hover:bg-primary/90 disabled:opacity-50">
-                      Post Comment
+                    <button type="submit" disabled={!commentText.trim()} className="cf-btn-primary text-xs py-1.5 px-3">
+                      Post
                     </button>
                   </div>
                 </div>
               </form>
-            </section>
-          </div>
+            </div>
+          )}
+
+          {/* Attachments tab */}
+          {activeTab === 'attachments' && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-xs text-cf-3">{attachments.length === 0 ? 'No files attached yet.' : `${attachments.length} file(s) attached`}</p>
+                <label className="cf-btn-secondary cursor-pointer text-xs">
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                  </svg>
+                  Attach file
+                  <input type="file" className="hidden" ref={fileInputRef} onChange={handleFileUpload} />
+                </label>
+              </div>
+
+              {attachments.map(att => (
+                <div key={att.id} className="flex items-center gap-3 rounded-xl border border-cf p-3 hover:bg-cf-elevated transition-colors">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary-light dark:bg-primary-DEFAULT/15 text-primary-DEFAULT dark:text-primary-dark">
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                    </svg>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="truncate text-sm font-medium text-cf">{att.fileName}</p>
+                    <p className="text-xs text-cf-3">{(att.fileSize / 1024).toFixed(1)} KB · by {att.uploadedBy.firstName}</p>
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <a href={getAttachmentDownloadUrl(taskId, att.id)} download={att.fileName} target="_blank" rel="noreferrer"
+                      className="cf-btn-ghost p-1.5 rounded-lg">
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                      </svg>
+                    </a>
+                    {(currentUser?.id === att.uploadedBy.id || currentUser?.role === 'ADMIN') && (
+                      <button onClick={() => dispatch(deleteAttachment({ taskId, attachmentId: att.id }))} className="cf-btn-ghost p-1.5 rounded-lg text-rose-500 hover:text-rose-600">
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>
