@@ -100,9 +100,27 @@ export const addMember = async (id, { email, role = 'DEVELOPER' }, actor) => {
   if (!user) throw new AppError('No user exists for this email address.', 404);
   if (user.status !== 'ACTIVE') throw new AppError('Only active users can be added to projects.', 422);
   
+  // Fetch project to retrieve its organizationId
+  const project = await prisma.project.findUnique({ where: { id }, select: { organizationId: true } });
+  if (!project) throw new AppError('Project not found.', 404);
+
   const membership = await prisma.projectMember.findUnique({ where: { projectId_userId: { projectId: id, userId: user.id } } });
   if (membership) throw new AppError('This user is already a project member.', 409);
   
+  // Ensure the user is a member of the project's parent organization
+  const orgMember = await prisma.organizationMember.findUnique({
+    where: { organizationId_userId: { organizationId: project.organizationId, userId: user.id } }
+  });
+  if (!orgMember) {
+    await prisma.organizationMember.create({
+      data: {
+        organizationId: project.organizationId,
+        userId: user.id,
+        role: 'MEMBER'
+      }
+    });
+  }
+
   const newMember = await prisma.projectMember.create({ data: { projectId: id, userId: user.id, role }, include: { user: { select: memberUserSelect } } });
   eventBus.emit('member:added', { projectId: id, userId: user.id, role, actor });
   return newMember;
