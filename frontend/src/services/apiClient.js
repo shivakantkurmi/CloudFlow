@@ -36,9 +36,17 @@ apiClient.interceptors.response.use(
 
     // ── 401 handling ──────────────────────────────────────────────
     if (status === 401) {
-      // Don't retry refresh calls themselves — that's an infinite loop
+      // On auth routes (login/register/refresh), a 401 is a normal "wrong credentials"
+      // response — do NOT trigger forceLogout here; let the form handle it
+      const isAuthCall = original?.url?.includes('/auth/login')
+        || original?.url?.includes('/auth/register');
       const isRefreshCall = original?.url?.includes('/auth/refresh');
       const alreadyRetried = original?._retry;
+
+      if (isAuthCall) {
+        // Let it fall through so the catch block in AuthPage shows the toast
+        return Promise.reject(error);
+      }
 
       if (isRefreshCall || alreadyRetried) {
         // Refresh token is also invalid/expired → hard logout
@@ -72,10 +80,14 @@ apiClient.interceptors.response.use(
       }
     }
 
-    // ── 403: show specific backend reason ─────────────────────────
+    // ── 403: show specific backend reason but NOT on auth pages ───
     if (status === 403) {
-      const msg = serverMessage || 'You do not have permission to perform this action.';
-      toast.error(msg, { toastId: `forbidden-${Date.now()}` });
+      const isAuthPage = window.location.pathname.startsWith('/login')
+        || window.location.pathname.startsWith('/register');
+      if (!isAuthPage) {
+        const msg = serverMessage || 'You do not have permission to perform this action.';
+        toast.error(msg, { toastId: `forbidden-${Date.now()}` });
+      }
     }
 
     return Promise.reject(error);
