@@ -28,7 +28,7 @@ export const listProjectValidation = [query('limit').optional().toInt().isInt({ 
 export const addMemberValidation = [
   ...projectIdValidation,
   body('email').isEmail().normalizeEmail(),
-  body('role').optional().isIn(['LEAD', 'MEMBER']),
+  body('role').optional().isIn(['PROJECT_MANAGER', 'DEVELOPER', 'TESTER', 'VIEWER']),
 ];
 
 export const removeMemberValidation = [...projectIdValidation, param('userId').isString().trim().notEmpty()];

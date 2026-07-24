@@ -1,14 +1,33 @@
 import { prisma } from '../config/prisma.js';
 import { eventBus } from '../events/eventBus.js';
+import { AppError } from '../utils/AppError.js';
 
 export const listProjectActivities = async (projectId, actor) => {
   // Check membership
-  const project = await prisma.project.findFirst({ where: { id: projectId, status: { not: 'DELETED' } }, select: { ownerId: true } });
-  if (!project) throw new Error('Project not found');
+  const project = await prisma.project.findFirst({
+    where: { id: projectId, status: { not: 'DELETED' } },
+    select: { id: true, organizationId: true }
+  });
+  if (!project) throw new AppError('Project not found', 404, 'PROJECT_NOT_FOUND');
   
-  if (actor.role !== 'ADMIN' && project.ownerId !== actor.sub) {
-    const member = await prisma.projectMember.findUnique({ where: { projectId_userId: { projectId, userId: actor.sub } } });
-    if (!member) throw new Error('Forbidden');
+  if (actor.role !== 'ADMIN') {
+    const member = await prisma.projectMember.findUnique({
+      where: { projectId_userId: { projectId, userId: actor.sub } }
+    });
+    
+    if (!member) {
+      const orgMember = await prisma.organizationMember.findUnique({
+        where: {
+          organizationId_userId: {
+            organizationId: project.organizationId,
+            userId: actor.sub
+          }
+        }
+      });
+      if (!orgMember || !['OWNER', 'ADMIN'].includes(orgMember.role)) {
+        throw new AppError('Forbidden', 403, 'FORBIDDEN');
+      }
+    }
   }
 
   return prisma.activityLog.findMany({

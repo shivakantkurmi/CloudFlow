@@ -4,10 +4,29 @@ import { verifyAccessToken } from '../utils/tokenUtils.js';
 let io;
 
 const canJoinProject = async (projectId, auth) => {
-  const project = await prisma.project.findFirst({ where: { id: projectId, status: { not: 'DELETED' } }, select: { ownerId: true } });
+  const project = await prisma.project.findFirst({
+    where: { id: projectId, status: { not: 'DELETED' } },
+    select: { organizationId: true }
+  });
   if (!project) return false;
-  if (auth.role === 'ADMIN' || project.ownerId === auth.sub) return true;
-  return Boolean(await prisma.projectMember.findUnique({ where: { projectId_userId: { projectId, userId: auth.sub } } }));
+  if (auth.role === 'ADMIN') return true;
+
+  const projectMember = await prisma.projectMember.findUnique({
+    where: { projectId_userId: { projectId, userId: auth.sub } }
+  });
+  if (projectMember) return true;
+
+  const orgMember = await prisma.organizationMember.findUnique({
+    where: {
+      organizationId_userId: {
+        organizationId: project.organizationId,
+        userId: auth.sub
+      }
+    }
+  });
+  if (orgMember && ['OWNER', 'ADMIN'].includes(orgMember.role)) return true;
+
+  return false;
 };
 
 export const initializeSockets = (socketServer) => {

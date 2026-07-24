@@ -6,15 +6,37 @@ import { eventBus } from '../events/eventBus.js';
 const userSelect = { id: true, email: true, firstName: true, lastName: true, avatar: true };
 const taskInclude = { assignee: { select: userSelect }, createdBy: { select: userSelect }, labels: true };
 const isSystemAdmin = (actor) => actor.role === 'ADMIN';
-const isProjectManager = (membership) => membership?.role === 'ADMIN' || membership?.role === 'LEAD';
+const isProjectManager = (membership) => membership?.role === 'PROJECT_MANAGER';
 
 const requireProjectMembership = async (projectId, actor) => {
-  const project = await prisma.project.findFirst({ where: { id: projectId, status: { not: 'DELETED' } }, select: { id: true, ownerId: true } });
+  const project = await prisma.project.findFirst({
+    where: { id: projectId, status: { not: 'DELETED' } },
+    select: { id: true, organizationId: true }
+  });
   if (!project) throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
-  if (isSystemAdmin(actor) || project.ownerId === actor.sub) return { project, membership: { role: 'ADMIN' } };
-  const membership = await prisma.projectMember.findUnique({ where: { projectId_userId: { projectId, userId: actor.sub } } });
-  if (!membership) throw new AppError('Project membership is required.', 403, 'FORBIDDEN');
-  return { project, membership };
+  
+  if (isSystemAdmin(actor)) {
+    return { project, membership: { role: 'PROJECT_MANAGER' } };
+  }
+
+  const membership = await prisma.projectMember.findUnique({
+    where: { projectId_userId: { projectId, userId: actor.sub } }
+  });
+  if (membership) return { project, membership };
+
+  const orgMember = await prisma.organizationMember.findUnique({
+    where: {
+      organizationId_userId: {
+        organizationId: project.organizationId,
+        userId: actor.sub
+      }
+    }
+  });
+  if (orgMember && ['OWNER', 'ADMIN'].includes(orgMember.role)) {
+    return { project, membership: { role: 'PROJECT_MANAGER' } };
+  }
+
+  throw new AppError('Project membership is required.', 403, 'FORBIDDEN');
 };
 
 const verifyAssignee = async (projectId, assigneeId) => {

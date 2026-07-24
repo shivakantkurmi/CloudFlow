@@ -10,8 +10,17 @@ const projectWhereClause = (actor) => {
     status: { not: 'DELETED' },
     OR: [
       { visibility: 'PUBLIC' },
-      { ownerId: actor.sub },
-      { members: { some: { userId: actor.sub } } }
+      { members: { some: { userId: actor.sub } } },
+      {
+        organization: {
+          members: {
+            some: {
+              userId: actor.sub,
+              role: { in: ['OWNER', 'ADMIN'] }
+            }
+          }
+        }
+      }
     ]
   };
 };

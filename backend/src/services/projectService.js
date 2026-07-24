@@ -104,7 +104,7 @@ export const addMember = async (id, { email, role = 'DEVELOPER' }, actor) => {
   if (membership) throw new AppError('This user is already a project member.', 409);
   
   const newMember = await prisma.projectMember.create({ data: { projectId: id, userId: user.id, role }, include: { user: { select: memberUserSelect } } });
-  eventBus.emit('member:added', { projectId: id, userId: user.id, role, actorId: actor.id });
+  eventBus.emit('member:added', { projectId: id, userId: user.id, role, actor });
   return newMember;
 };
 
@@ -113,5 +113,5 @@ export const removeMember = async (id, userId, actor) => {
   if (!membership) throw new AppError('Project member not found.', 404);
   
   await prisma.projectMember.delete({ where: { id: membership.id } });
-  eventBus.emit('member:removed', { projectId: id, userId, actorId: actor.id });
+  eventBus.emit('member:removed', { projectId: id, userId, actor });
 };

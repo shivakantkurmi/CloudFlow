@@ -8,15 +8,43 @@ import { uploadPath } from '../middleware/uploadMiddleware.js';
 
 const userSelect = { id: true, firstName: true, lastName: true, email: true, avatar: true };
 const isSystemAdmin = (actor) => actor.role === 'ADMIN';
-const isManager = (membership) => membership?.role === 'ADMIN' || membership?.role === 'LEAD';
+const isManager = (membership) => membership?.role === 'PROJECT_MANAGER';
 
 const requireTaskMembership = async (taskId, actor) => {
-  const task = await prisma.task.findUnique({ where: { id: taskId }, select: { id: true, projectId: true, project: { select: { ownerId: true, status: true } } } });
-  if (!task || task.project.status === 'DELETED') throw new AppError('Task not found.', 404, 'TASK_NOT_FOUND');
-  if (isSystemAdmin(actor) || task.project.ownerId === actor.sub) return { task, membership: { role: 'ADMIN' } };
-  const membership = await prisma.projectMember.findUnique({ where: { projectId_userId: { projectId: task.projectId, userId: actor.sub } } });
-  if (!membership) throw new AppError('Project membership is required.', 403, 'FORBIDDEN');
-  return { task, membership };
+  const task = await prisma.task.findUnique({
+    where: { id: taskId },
+    select: {
+      id: true,
+      projectId: true,
+      project: { select: { organizationId: true, status: true } }
+    }
+  });
+  if (!task || task.project.status === 'DELETED') {
+    throw new AppError('Task not found.', 404, 'TASK_NOT_FOUND');
+  }
+  
+  if (isSystemAdmin(actor)) {
+    return { task, membership: { role: 'PROJECT_MANAGER' } };
+  }
+
+  const membership = await prisma.projectMember.findUnique({
+    where: { projectId_userId: { projectId: task.projectId, userId: actor.sub } }
+  });
+  if (membership) return { task, membership };
+
+  const orgMember = await prisma.organizationMember.findUnique({
+    where: {
+      organizationId_userId: {
+        organizationId: task.project.organizationId,
+        userId: actor.sub
+      }
+    }
+  });
+  if (orgMember && ['OWNER', 'ADMIN'].includes(orgMember.role)) {
+    return { task, membership: { role: 'PROJECT_MANAGER' } };
+  }
+
+  throw new AppError('Project membership is required.', 403, 'FORBIDDEN');
 };
 
 export const listComments = async (taskId, actor) => {
