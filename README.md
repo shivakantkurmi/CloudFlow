@@ -1,246 +1,407 @@
 # CloudFlow
 
-## Overview
+> A modern collaborative project management platform built with React, Node.js, Express, Prisma and PostgreSQL. CloudFlow provides organizations, projects, Kanban boards, tasks, real-time collaboration, notifications, activity logs, RBAC, and file attachments.
 
-CloudFlow is a full-stack collaborative project management platform inspired by modern enterprise tools such as Jira and Linear. It provides organization workspaces, project management, Kanban boards, task tracking, real-time collaboration, role-based access control (RBAC), activity logs, notifications, and file attachments.
+## Tech Stack
 
-**Tech Stack**
-
-- **Frontend**: React + Vite + Redux Toolkit + Tailwind CSS + Axios
-- **Backend**: Node.js + Express + Socket.IO + Multer
-- **Database**: PostgreSQL (Supabase) + Prisma ORM
-- **Authentication**: JWT + Refresh Tokens (deduplicated refresh handlers & global session checks)
-- **Real-time**: Socket.IO (room-based project channels)
-- **Deployment**:
-  - Frontend: Vercel
-  - Backend: Render
-  - Database: Supabase PostgreSQL (Port 6543 pooler)
-- **Original cloud architecture**: AWS (designed for EC2, RDS, S3, ALB, CloudFront, etc.)
+- **Frontend:** React (Vite) + Redux Toolkit + Tailwind CSS + Axios
+- **Backend:** Node.js + Express + Socket.IO + Multer
+- **Database:** PostgreSQL + Prisma ORM
+- **Authentication:** JWT + Refresh Tokens (deduplicated client refresh handler)
+- **Realtime:** Socket.IO (project channel rooms)
+- **Containerization:** Docker
+- **Current Deployment:** Vercel + Render
 
 ---
 
-# Deployment Note
+# Project Status
 
-> [!IMPORTANT]
-> CloudFlow was originally deployed on AWS as part of a cloud-native architecture.
->
-> To reduce ongoing cloud costs, the AWS infrastructure was intentionally destroyed and this repository currently uses **Vercel + Render** for demonstration purposes.
->
-> The application remains fully functional and can be redeployed to AWS by following the instructions below.
+CloudFlow was originally deployed on AWS during development.
+
+To reduce recurring cloud costs, the AWS infrastructure was intentionally destroyed. The application is currently deployed using:
+
+- Frontend → **Vercel**
+- Backend → **Render** (via standard web service container instances)
+- Database → **Supabase PostgreSQL** (using Port 6543 transaction pooler)
+
+The application remains fully functional and can be redeployed on AWS using the instructions below.
 
 ---
 
-# Render Limitation
+# Render Storage Warning
 
 > [!WARNING]
-> The current remote backend runs on **Render**, whose free instances use **ephemeral storage**.
+> The current Render deployment stores uploaded files locally under `backend/uploads/`.
 >
-> This means:
-> - Uploaded task attachments are stored only on the running instance container disk.
-> - Files will disappear after a server restart, sleep cycle, or a new deployment.
-> - Local uploads are **not suitable for production**.
+> Render free instances use **ephemeral storage**.
 >
-> For production deployments, migrate file storage to **Amazon S3** or use **Supabase Storage**.
+> This means uploaded attachments can be lost whenever the service restarts, goes to sleep, or is redeployed.
+>
+> **For production deployments, Amazon S3 or Supabase Storage buckets should always be used instead of local storage.**
 
 ---
 
-# Current Features
+# Features
 
-- **Robust Authentication**: JWT authorization, refresh token rotation, and transparent forced logout redirects for expired sessions.
-- **Organization Workspaces**: Dynamic organization onboarding and a header dropdown switcher.
-- **Project Management**: Support for private & public projects with automatic organization membership sync.
-- **RBAC Security**: 
-  - Organization-level roles: `OWNER`, `ADMIN`, `MEMBER`.
-  - Project-level roles: `PROJECT_MANAGER`, `DEVELOPER`, `TESTER`, `VIEWER`.
-  - Permission protections (e.g., preventing project managers from removing organization creators/owners).
-  - Automatic organization cleanup (removing users from organization memberships when they leave or are kicked from their last project).
-  - Visual project creation locks for standard members.
-- **Task Board & Lists**: Drag-and-drop Kanban columns (To Do, In Progress, Testing, Done) and a spreadsheet-like List tab view.
-- **Real-time Websocket Comments**: Chat threads under tasks syncing instantly across everyone's screen.
-- **Task Attachments**: Multer-based secure file upload, download, and delete flows.
-- **Activity Timeline**: Full-fidelity audit log logging all actions (task moves, comments, updates, project invites).
-- **Notification Center Center**: Real-time notifications and unread counters.
-
----
-
-# AWS Migration Guide
-
-## 1. Amazon RDS (Recommended)
-
-Replace the current PostgreSQL database with Amazon RDS.
-
-### Steps
-
-1. Create a PostgreSQL RDS instance.
-2. Allow inbound traffic from the backend EC2 security group.
-3. Update `.env`:
-   ```env
-   DATABASE_URL=postgresql://username:password@rds-endpoint:5432/cloudflow
-   ```
-4. Run:
-   ```bash
-   npx prisma migrate deploy
-   ```
+- **User Authentication**: Secure JWT-based access tokens with refresh token rotation and auto-logout on session expiration.
+- **Organizations & Workspaces**: Create workspaces and toggle between different team scopes seamlessly using the top-left switcher.
+- **Project Management**: Create public & private projects. Automatic organization membership sync dynamically grants workspace permissions when invited to projects.
+- **Granular RBAC**:
+  - Organization roles: `OWNER`, `ADMIN`, `MEMBER`.
+  - Project roles: `PROJECT_MANAGER`, `DEVELOPER`, `TESTER`, `VIEWER`.
+  - Security checks that prevent project managers from removing workspace creators/owners.
+- **Kanban Board**: Drag-and-drop task cards between columns (`To Do`, `In Progress`, `Testing`, `Done`).
+- **Task Management**: Spreadsheet-like detailed list layout with priorities (`Low`, `Medium`, `High`, `Critical`), due dates, assignees, and custom labels.
+- **Real-time Comments**: Comment threads on tasks syncing immediately across all active screens.
+- **File Attachments**: Upload, download, and delete attachments safely.
+- **Notification Center**: Header notifications dropdown updating in real-time when assigned to tasks or invited to projects.
+- **Activity Timeline**: Full auditing timeline logging all actions (task moves, comments, edits, invites).
+- **Access Cleanup**: Automatic organization membership cleanup when users leave or are removed from their last remaining project in that organization.
 
 ---
 
-## 2. Amazon S3 (Required for Production)
+# AWS Production Deployment
 
-Replace the local uploads folder (`backend/uploads/`) with Amazon S3.
+The following AWS services can be integrated **using the current application with little or no business logic changes**.
 
-### Required Changes
+## 1. Docker (Backend)
 
-Install the AWS SDK clients:
+Containerize the backend before deployment.
+
+Example Dockerfile
+
+```dockerfile
+FROM node:20-alpine
+
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm install
+
+COPY . .
+
+RUN npx prisma generate
+
+EXPOSE 5000
+
+CMD ["npm","start"]
+```
+
+Build
+
 ```bash
-npm install @aws-sdk/client-s3 @aws-sdk/lib-storage
+docker build -t cloudflow-backend .
 ```
 
-Create an S3 service file:
-`src/services/s3.js`
+Run locally
 
-Replace every local upload in `collaborationService.js` with:
-- Upload to S3 bucket.
-- Save the S3 object key/path in PostgreSQL.
-- Generate signed download URLs when users request files.
-
-Enable bucket protection:
-- Bucket Versioning.
-- Block Public Access.
-- IAM-only access (IAM role policy).
+```bash
+docker run -p 5000:5000 --env-file .env cloudflow-backend
+```
 
 ---
 
-## 3. IAM Role
+## 2. Amazon EC2
 
-Never hardcode AWS credentials or save secret keys in files.
+Recommended Instance
 
-Attach an IAM Role to your EC2 instance profile with permissions for:
-- S3 read/write.
-- CloudWatch logging.
+- Ubuntu 22.04
+- t3.small (or higher)
 
-The AWS SDK will automatically read the credentials from the EC2 metadata server.
+Install Docker
 
----
+```bash
+sudo apt update
+sudo apt install docker.io -y
+sudo systemctl enable docker
+sudo systemctl start docker
+sudo usermod -aG docker ubuntu
+newgrp docker
+```
 
-## 4. CloudWatch
+Run the container
 
-Install the CloudWatch Agent on EC2.
+```bash
+docker pull <image>
 
-Configure it to monitor:
-- CPU utilization.
-- Memory usage.
-- Disk space.
-- Express application error logs.
-
----
-
-## 5. Secrets Manager
-
-Move sensitive values from the `.env` file to AWS Secrets Manager.
-
-Recommended secrets:
-- `JWT_SECRET`
-- `DATABASE_URL`
-- `SMTP credentials`
+docker run -d \
+--restart always \
+-p 5000:5000 \
+--env-file .env \
+--name cloudflow \
+<image>
+```
 
 ---
 
-## 6. Application Load Balancer
+## 3. Nginx
 
-Place an ALB in front of the EC2 Auto Scaling Group.
+Install
 
-Benefits:
-- SSL/TLS termination.
-- Health checks.
-- Scalability.
+```bash
+sudo apt install nginx -y
+```
 
----
+Configure Nginx as a reverse proxy with WebSocket support.
 
-## 7. Auto Scaling Group
+Benefits
 
-Launch EC2 instances using an Auto Scaling Group.
-
-Benefits:
-- Automatic recovery of crashed instances.
-- Horizontal scaling based on CPU/traffic thresholds.
+- Reverse Proxy
+- HTTPS
+- WebSocket forwarding
+- Better security
 
 ---
 
-## 8. CloudFront + S3
+## 4. Amazon RDS
 
-Deploy the React build folder (`dist/`) to an S3 bucket and distribute it globally using CloudFront.
+Replace the local PostgreSQL instance with Amazon RDS.
 
-Benefits:
-- CDN caching.
-- HTTPS termination.
-- Faster global page load performance.
+Update
 
----
+```env
+DATABASE_URL=postgresql://user:password@rds-endpoint:5432/cloudflow
+```
 
-## 9. Amazon SES
+Run
 
-Replace SMTP credentials with SES for transactional emails.
+```bash
+npx prisma migrate deploy
+```
 
-Use cases:
-- Project invitation emails.
-- Password resets.
-- Real-time notifications alerts.
+No application logic changes are required.
 
 ---
 
-## 10. Amazon SQS (Future)
+## 5. Amazon S3
 
-Current notification flow:
+### Current
+
+```
+Browser
+    │
+Express
+    │
+backend/uploads/
+```
+
+### Production
+
+```
+Browser
+    │
+Express
+    │
+Amazon S3
+```
+
+Changes required
+
+- Install AWS SDK
+- Upload files to S3
+- Store object key and metadata in PostgreSQL
+- Generate signed download URLs
+
+This is a small storage-layer change; the attachment feature itself remains unchanged.
+
+---
+
+## 6. IAM Roles
+
+Attach an IAM Role to the EC2 instance.
+
+Avoid storing AWS credentials inside `.env`.
+
+---
+
+## 7. AWS Secrets Manager
+
+Move sensitive values such as
+
+- DATABASE_URL
+- JWT_SECRET
+- Refresh Token Secret
+- SMTP credentials
+- API Keys
+
+from `.env` into Secrets Manager.
+
+---
+
+## 8. Amazon CloudWatch
+
+Monitor
+
+- Application logs
+- Docker logs
+- CPU
+- Memory
+- Disk
+- Network
+
+---
+
+## 9. Application Load Balancer (ALB)
+
+Place an ALB in front of the EC2 instance.
+
+Benefits
+
+- HTTPS termination
+- Health checks
+- Better availability
+- Easy horizontal scaling
+
+---
+
+## 10. Auto Scaling Group
+
+Move EC2 into an Auto Scaling Group.
+
+Benefits
+
+- Automatic recovery
+- Scale with traffic
+- High availability
+
+---
+
+## 11. Amazon S3 + CloudFront (Frontend)
+
+Deploy the React production build to an S3 bucket.
+
+Connect CloudFront as a CDN.
+
+Benefits
+
+- Faster asset delivery
+- HTTPS
+- Lower latency
+- Global caching
+
+---
+
+## 12. Route 53
+
+Point your domain to CloudFront and the ALB.
+
+Example
+
+```
+cloudflow.example.com
+
+api.cloudflow.example.com
+```
+
+---
+
+# Suggested AWS Architecture
+
 ```text
-API ──> Send Notification
+                    Users
+                      │
+                  Route 53
+                      │
+                 CloudFront
+              ┌────────┴────────┐
+              │                 │
+         React (S3)            ALB
+                                 │
+                     Auto Scaling Group
+                         ┌───────┴───────┐
+                         │               │
+                    EC2 (Docker)    EC2 (Docker)
+                         │
+          ┌──────────────┼──────────────┐
+          │              │              │
+         RDS             S3        CloudWatch
+          │
+   Secrets Manager
+          │
+      IAM Roles
 ```
-
-Future decoupled flow:
-```text
-API ──> SQS Queue ──> Notification Worker
-```
-
-Benefits:
-- Retry support.
-- Better scalability.
-- Non-blocking API requests.
 
 ---
 
-## 11. Amazon SNS (Future)
+# Future Enhancements
 
-SNS can be connected to the SQS processing queue.
+The following services are **not implemented in the current version**. They are planned for future releases to improve scalability and reliability.
 
-Use cases:
-- Email.
-- SMS.
-- Push notifications.
+## Amazon SQS
+
+Use SQS to decouple notification processing.
+
+Future flow
+
+```
+API
+ │
+ ▼
+SQS Queue
+ │
+ ▼
+Notification Worker
+ │
+ ▼
+Database + Socket.IO
+```
+
+Benefits
+
+- Retry support
+- Non-blocking APIs
+- Better scalability
 
 ---
 
-## Suggested Production Architecture
+## Amazon SNS
 
-```text
-Users
-   │
-Route53
-   │
-CloudFront
- ├───────────────┐
- │               │
-React (S3)      ALB
-                  │
-          Auto Scaling Group
-             │          │
-           EC2        EC2
-             │
-      ┌──────┼─────────┐
-      │      │         │
-     RDS     S3    CloudWatch
-      │
- Secrets Manager
-      │
-   IAM Roles
-      │
-   SQS → Worker → SNS
-```
+After SQS processing, publish notifications using SNS.
+
+Potential use cases
+
+- Email notifications
+- SMS alerts
+- Push notifications
+
+---
+
+## Amazon SES
+
+Replace SMTP for
+
+- Password reset emails
+- Project invitations
+- Email notifications
+
+---
+
+## Redis (ElastiCache)
+
+- Rate limiting
+- Caching
+- Presence tracking
+- Frequently accessed project data
+
+---
+
+## GitHub Actions CI/CD
+
+Automate
+
+- Build
+- Test
+- Docker image creation
+- Deployment to EC2
+
+---
+
+## Blue-Green Deployment
+
+Deploy new versions with zero downtime.
+
+---
+
+# License
+
+This project is intended for educational and portfolio purposes. Feel free to fork and extend it for learning.
