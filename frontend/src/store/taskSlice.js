@@ -11,7 +11,14 @@ const taskSlice = createSlice({ name: 'tasks', initialState: { items: [], status
 }, extraReducers: (builder) => builder
   .addCase(fetchTasks.pending, (state) => { state.status = 'loading'; })
   .addCase(fetchTasks.fulfilled, (state, { payload }) => { state.items = payload; state.status = 'succeeded'; })
-  .addCase(createTask.fulfilled, (state, { payload }) => { state.items.push(payload); })
+  .addCase(createTask.fulfilled, (state, { payload }) => {
+    const index = state.items.findIndex((task) => task.id === payload.id);
+    if (index === -1) {
+      state.items.push(payload);
+    } else {
+      state.items[index] = payload;
+    }
+  })
   .addCase(updateTask.fulfilled, (state, { payload }) => { const index = state.items.findIndex((task) => task.id === payload.id); if (index >= 0) state.items[index] = payload; })
   .addCase(deleteTask.fulfilled, (state, { meta }) => { state.items = state.items.filter((task) => task.id !== meta.arg.id); })
   .addCase(moveTask.pending, (state, { meta }) => { const task = state.items.find((item) => item.id === meta.arg.id); if (task) { task.status = meta.arg.status; task.position = meta.arg.position; } })
