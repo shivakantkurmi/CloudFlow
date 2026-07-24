@@ -43,7 +43,17 @@ export const ProjectDetailPage = () => {
     if (taskId) { setSelectedTaskId(taskId); navigate(`/projects/${id}`, { replace: true }); }
   }, [location.search, navigate, id]);
 
-  useEffect(() => { dispatch(fetchProject(id)); dispatch(fetchMembers(id)); }, [dispatch, id]);
+  useEffect(() => {
+    dispatch(fetchProject(id))
+      .unwrap()
+      .catch((err) => {
+        toast.error(getFriendlyErrorMessage(err));
+        navigate('/');
+      });
+    dispatch(fetchMembers(id))
+      .unwrap()
+      .catch(() => {});
+  }, [dispatch, id, navigate]);
   useEffect(() => { joinProjectRoom(id); return () => leaveProjectRoom(id); }, [id]);
   useEffect(() => {
     if (current) editForm.reset({ name: current.name, description: current.description ?? '', visibility: current.visibility, status: current.status });

@@ -135,17 +135,28 @@ export const removeMember = async (id, userId, actor) => {
   if (!membership) throw new AppError('Project member not found.', 404);
 
   const isSelf = actor.sub === userId;
+  const isSystemAdmin = actor.role === 'ADMIN';
+
+  // Fetch actor's role in the organization
+  const orgMember = await prisma.organizationMember.findUnique({
+    where: { organizationId_userId: { organizationId: membership.project.organizationId, userId: actor.sub } }
+  });
+  const isOrgAdmin = orgMember && ['OWNER', 'ADMIN'].includes(orgMember.role);
+
+  // Fetch target user's role in the organization
+  const targetOrgMember = await prisma.organizationMember.findUnique({
+    where: { organizationId_userId: { organizationId: membership.project.organizationId, userId } }
+  });
 
   // Role based permission validation
-  if (!isSelf && actor.role !== 'ADMIN') {
-    // If not self and not system admin, check if Org Owner/Admin
-    const orgMember = await prisma.organizationMember.findUnique({
-      where: { organizationId_userId: { organizationId: membership.project.organizationId, userId: actor.sub } }
-    });
-    const isOrgAdmin = orgMember && ['OWNER', 'ADMIN'].includes(orgMember.role);
-    
+  if (!isSelf && !isSystemAdmin) {
     if (!isOrgAdmin) {
-      // Check if actor has PROJECT_MANAGER role in the project
+      // 1. Regular Project Manager cannot remove an Organization Owner or Admin from any project
+      if (targetOrgMember && ['OWNER', 'ADMIN'].includes(targetOrgMember.role)) {
+        throw new AppError('You do not have permission to remove an Organization Owner or Admin.', 403, 'FORBIDDEN');
+      }
+
+      // 2. Check if actor has PROJECT_MANAGER role in the project
       const actorMembership = await prisma.projectMember.findUnique({
         where: { projectId_userId: { projectId: id, userId: actor.sub } }
       });
@@ -170,4 +181,21 @@ export const removeMember = async (id, userId, actor) => {
 
   await prisma.projectMember.delete({ where: { id: membership.id } });
   eventBus.emit('member:removed', { projectId: id, userId, actor });
+
+  // Clean up Organization membership if the user has no remaining projects in it and is not an Org Owner/Admin
+  const targetIsOrgAdmin = targetOrgMember && ['OWNER', 'ADMIN'].includes(targetOrgMember.role);
+  if (!targetIsOrgAdmin && targetOrgMember) {
+    const remainingProjectsCount = await prisma.projectMember.count({
+      where: {
+        userId,
+        project: {
+          organizationId: membership.project.organizationId,
+          status: { not: 'DELETED' }
+        }
+      }
+    });
+    if (remainingProjectsCount === 0) {
+      await prisma.organizationMember.delete({ where: { id: targetOrgMember.id } });
+    }
+  }
 };

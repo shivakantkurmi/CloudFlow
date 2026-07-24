@@ -26,12 +26,16 @@ const VISIBILITY_ICON = {
 
 export const ProjectsPage = () => {
   const dispatch = useDispatch();
+  const { user } = useSelector(state => state.auth);
   const { items, status } = useSelector(state => state.projects);
   const { currentOrg } = useSelector(state => state.orgs);
   const [isCreating, setIsCreating] = useState(false);
   const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm({
     defaultValues: { visibility: 'PRIVATE' }
   });
+
+  const userRoleInOrg = currentOrg?.members?.find(m => m.userId === user?.id)?.role;
+  const canCreateProject = userRoleInOrg === 'OWNER' || userRoleInOrg === 'ADMIN';
 
   useEffect(() => {
     if (currentOrg) dispatch(fetchProjects(currentOrg.id));
@@ -58,26 +62,32 @@ export const ProjectsPage = () => {
           )}
           <h1 className="text-2xl font-bold text-cf">Projects</h1>
         </div>
-        <button
-          onClick={() => setIsCreating(!isCreating)}
-          className={isCreating ? 'cf-btn-secondary' : 'cf-btn-primary'}
-        >
-          {isCreating ? (
-            <>
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-              Cancel
-            </>
-          ) : (
-            <>
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-              </svg>
-              New project
-            </>
-          )}
-        </button>
+        {canCreateProject ? (
+          <button
+            onClick={() => setIsCreating(!isCreating)}
+            className={isCreating ? 'cf-btn-secondary' : 'cf-btn-primary'}
+          >
+            {isCreating ? (
+              <>
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+                Cancel
+              </>
+            ) : (
+              <>
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                </svg>
+                New project
+              </>
+            )}
+          </button>
+        ) : (
+          <div className="text-xs font-semibold text-cf-3 bg-cf-elevated border border-cf rounded-xl px-4 py-2.5">
+            Only Org Admins can create projects
+          </div>
+        )}
       </div>
 
       {/* Create project form */}
