@@ -106,7 +106,7 @@ export const DashboardPage = () => {
             ) : null;
           })}
         </div>
-        <div className="flex items-center gap-4 mt-3">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-3">
           {[
             { key: 'TODO', label: 'To Do', color: 'bg-slate-300 dark:bg-slate-700' },
             { key: 'IN_PROGRESS', label: 'In Progress', color: 'bg-blue-500' },

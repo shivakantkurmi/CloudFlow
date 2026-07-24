@@ -174,12 +174,12 @@ export const ProjectDetailPage = () => {
       </div>
 
       {/* Tab navigation */}
-      <div className="flex items-center gap-1 mb-6 overflow-x-auto scrollbar-none">
+      <div className="flex items-center gap-1 mb-6 overflow-x-auto scrollbar-none -mx-1 px-1">
         {TAB_VIEWS.map(tab => (
           <button
             key={tab.id}
             onClick={() => setTaskView(tab.id)}
-            className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-medium transition-all whitespace-nowrap ${
+            className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-all whitespace-nowrap ${
               taskView === tab.id
                 ? 'bg-primary-DEFAULT/10 text-primary-DEFAULT dark:text-primary-dark border border-primary-DEFAULT/20'
                 : 'text-cf-2 hover:text-cf hover:bg-cf-elevated'

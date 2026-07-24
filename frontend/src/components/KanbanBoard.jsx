@@ -150,10 +150,14 @@ export const KanbanBoard = ({ projectId, onTaskSelect }) => {
       onDragEnd={onDragEnd}
       onDragCancel={() => setActiveTask(null)}
     >
-      <div className="grid gap-3 grid-cols-2 xl:grid-cols-4">
-        {columns.map(col => (
-          <BoardColumn key={col.id} column={col} tasks={orderedByStatus(col.id)} onTaskSelect={onTaskSelect} />
-        ))}
+      <div className="overflow-x-auto pb-4 -mx-2 px-2">
+        <div className="flex gap-3 min-w-max lg:min-w-0 lg:grid lg:grid-cols-4">
+          {columns.map(col => (
+            <div key={col.id} className="w-[260px] sm:w-[280px] lg:w-auto shrink-0 lg:shrink">
+              <BoardColumn column={col} tasks={orderedByStatus(col.id)} onTaskSelect={onTaskSelect} />
+            </div>
+          ))}
+        </div>
       </div>
       <DragOverlay>
         {activeTask ? <TaskCard task={activeTask} isOverlay /> : null}
