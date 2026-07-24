@@ -109,9 +109,47 @@ export const addMember = async (id, { email, role = 'DEVELOPER' }, actor) => {
 };
 
 export const removeMember = async (id, userId, actor) => {
-  const membership = await prisma.projectMember.findUnique({ where: { projectId_userId: { projectId: id, userId } } });
+  // Fetch membership of the target user to remove
+  const membership = await prisma.projectMember.findUnique({
+    where: { projectId_userId: { projectId: id, userId } },
+    include: { project: { select: { organizationId: true } } }
+  });
   if (!membership) throw new AppError('Project member not found.', 404);
-  
+
+  const isSelf = actor.sub === userId;
+
+  // Role based permission validation
+  if (!isSelf && actor.role !== 'ADMIN') {
+    // If not self and not system admin, check if Org Owner/Admin
+    const orgMember = await prisma.organizationMember.findUnique({
+      where: { organizationId_userId: { organizationId: membership.project.organizationId, userId: actor.sub } }
+    });
+    const isOrgAdmin = orgMember && ['OWNER', 'ADMIN'].includes(orgMember.role);
+    
+    if (!isOrgAdmin) {
+      // Check if actor has PROJECT_MANAGER role in the project
+      const actorMembership = await prisma.projectMember.findUnique({
+        where: { projectId_userId: { projectId: id, userId: actor.sub } }
+      });
+      if (actorMembership?.role !== 'PROJECT_MANAGER') {
+        throw new AppError('You do not have permission to remove this member.', 403, 'FORBIDDEN');
+      }
+    }
+  }
+
+  // Ensure at least one Project Manager remains if a Project Manager is being removed
+  if (membership.role === 'PROJECT_MANAGER') {
+    const pmCount = await prisma.projectMember.count({
+      where: {
+        projectId: id,
+        role: 'PROJECT_MANAGER'
+      }
+    });
+    if (pmCount <= 1) {
+      throw new AppError('Cannot remove the last Project Manager. Promote another member first.', 422, 'LAST_PM_REMOVAL_FORBIDDEN');
+    }
+  }
+
   await prisma.projectMember.delete({ where: { id: membership.id } });
   eventBus.emit('member:removed', { projectId: id, userId, actor });
 };
