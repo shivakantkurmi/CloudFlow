@@ -123,14 +123,14 @@ export const TaskManager = ({ projectId, members, onTaskSelect }) => {
     <div className="space-y-4">
       {/* Create task */}
       {showCreate ? (
-        <div className="cf-surface rounded-2xl p-5 animate-slide-down">
-          <h3 className="text-sm font-semibold text-cf mb-4">New Task</h3>
+        <div className="level-1-surface p-5 animate-slide-down">
+          <h3 className="font-technical text-xs text-cf uppercase tracking-wider mb-4 pb-3 border-b border-cf">New Task</h3>
           <form onSubmit={createForm.handleSubmit(saveNew)}>
             <TaskForm form={createForm} members={members} onCancel={() => setShowCreate(false)} submitLabel="Create task" />
           </form>
         </div>
       ) : (
-        <button onClick={() => setShowCreate(true)} className="flex w-full items-center gap-2 rounded-xl border border-dashed border-cf-strong p-3.5 text-sm text-cf-2 hover:text-cf hover:border-cf transition-colors">
+        <button onClick={() => setShowCreate(true)} id="add-task-btn" className="flex w-full items-center gap-2 border border-dashed border-cf p-3 font-technical text-xs text-cf-3 hover:text-cf hover:border-cf-strong transition-colors" style={{ borderRadius: 4 }}>
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
           </svg>
@@ -140,10 +140,10 @@ export const TaskManager = ({ projectId, members, onTaskSelect }) => {
 
       {/* Edit task modal overlay */}
       {editingTask && (
-        <div className="cf-surface rounded-2xl border border-primary-DEFAULT/30 p-5 animate-slide-down">
+        <div className="level-1-surface border border-cf-cyan/20 p-5 animate-slide-down">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-semibold text-cf">Edit: {editingTask.title}</h3>
-            <button onClick={() => setEditingTask(null)} className="cf-btn-ghost p-1 rounded-md">
+            <h3 className="font-technical text-xs text-cf uppercase tracking-wider">Edit: {editingTask.title}</h3>
+            <button onClick={() => setEditingTask(null)} className="cf-btn-ghost p-1">
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
               </svg>
@@ -157,55 +157,55 @@ export const TaskManager = ({ projectId, members, onTaskSelect }) => {
 
       {/* Task list */}
       {status === 'loading' ? (
-        <div className="space-y-2">
+        <div className="space-y-px bg-cf-border" style={{ borderRadius: 4, overflow: 'hidden' }}>
           {[...Array(4)].map((_, i) => (
-            <div key={i} className="cf-surface rounded-xl p-4 animate-pulse flex gap-3">
-              <div className="h-4 w-4 rounded-full bg-cf-elevated" />
+            <div key={i} className="level-1-surface p-4 animate-pulse flex gap-3">
+              <div className="h-3 w-3 bg-cf-high" style={{ borderRadius: 1 }} />
               <div className="flex-1 space-y-2">
-                <div className="h-4 rounded-md bg-cf-elevated w-3/5" />
-                <div className="h-3 rounded-md bg-cf-elevated w-2/5" />
+                <div className="h-3 bg-cf-high w-3/5" style={{ borderRadius: 2 }} />
+                <div className="h-2 bg-cf-elevated w-2/5" style={{ borderRadius: 2 }} />
               </div>
             </div>
           ))}
         </div>
       ) : items.length === 0 ? (
-        <p className="py-8 text-center text-sm text-cf-3">No tasks yet. Create one above.</p>
+        <p className="py-8 text-center font-technical text-xs text-cf-3">No tasks yet. Create one above.</p>
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-px bg-cf-border" style={{ borderRadius: 4, overflow: 'hidden' }}>
           {items.map(task => (
             <article
               key={task.id}
               onClick={() => onTaskSelect?.(task.id)}
-              className="task-card flex items-start gap-3"
+              className="level-1-surface flex items-start gap-3 p-3.5 cursor-pointer hover:bg-cf-hover transition-colors"
             >
-              <span className={`mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full ${PRIORITY_COLOR[task.priority] ?? 'bg-slate-400'}`} />
+              <span className={`mt-1 h-2 w-2 shrink-0 ${PRIORITY_COLOR[task.priority] ?? 'bg-cf-3'}`} style={{ borderRadius: 1 }} />
               <div className="flex-1 min-w-0">
                 <div className="flex items-start justify-between gap-2">
-                  <h3 className="text-sm font-semibold text-cf">{task.title}</h3>
+                  <h3 className="text-sm font-medium text-cf line-clamp-1">{task.title}</h3>
                   <span className={`shrink-0 ${STATUS_BADGE[task.status] ?? 'cf-badge-todo'}`}>{pretty(task.status)}</span>
                 </div>
                 {task.description && (
-                  <p className="mt-1 text-xs text-cf-3 line-clamp-1">{task.description}</p>
+                  <p className="mt-1 font-technical text-[11px] text-cf-3 line-clamp-1">{task.description}</p>
                 )}
-                {task.labels.length > 0 && (
+                {task.labels?.length > 0 && (
                   <div className="mt-1.5 flex flex-wrap gap-1">
                     {task.labels.map(label => (
-                      <span key={label.id} style={{ backgroundColor: label.color + '22', color: label.color }} className="rounded-full px-1.5 py-px text-[10px] font-medium">
+                      <span key={label.id} style={{ backgroundColor: label.color + '18', color: label.color, border: `1px solid ${label.color}33`, borderRadius: 2 }} className="font-technical text-[9px] px-1.5 py-px">
                         {label.label}
                       </span>
                     ))}
                   </div>
                 )}
-                <div className="mt-2 flex items-center gap-3 text-[10px] text-cf-3">
+                <div className="mt-1.5 flex items-center gap-3 font-technical text-[10px] text-cf-3">
                   <span>{task.assignee ? `${task.assignee.firstName} ${task.assignee.lastName}` : 'Unassigned'}</span>
                   {task.dueDate && <span>Due {new Date(task.dueDate).toLocaleDateString()}</span>}
                 </div>
               </div>
               <div className="flex shrink-0 items-center gap-1" onClick={e => e.stopPropagation()}>
-                <button onClick={() => startEdit(task)} className="cf-btn-ghost p-1.5 rounded-lg text-xs font-medium">
+                <button onClick={() => startEdit(task)} className="cf-btn-ghost p-1.5 font-caps text-[9px]">
                   Edit
                 </button>
-                <button onClick={() => remove(task.id)} className="cf-btn-ghost p-1.5 rounded-lg text-xs font-medium text-rose-500 hover:text-rose-600">
+                <button onClick={() => remove(task.id)} className="cf-btn-ghost p-1.5 font-caps text-[9px] text-[#ffb4ab]">
                   Delete
                 </button>
               </div>

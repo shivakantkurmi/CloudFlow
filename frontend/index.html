@@ -1,15 +1,41 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" class="dark">
 
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>CloudFlow</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CloudFlow — Spatial Project Intelligence</title>
+  <meta name="description" content="CloudFlow brings teams, tasks, projects, and activity into one connected workspace. Designed for engineering velocity." />
+
+  <!-- Geist (headings) + Inter (body) + JetBrains Mono (labels) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+
+  <!-- Geist via npm-cdn (no official Google Fonts entry) -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <!-- Material Symbols Outlined (used in Stitch icon set) -->
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet" />
+
+  <style>
+    /* Geist via @font-face from CDN — fallback to system-ui if blocked */
+    @font-face {
+      font-family: 'Geist';
+      src: url('https://fonts.gstatic.com/s/inter/v13/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuLyfAZ9hiJ-Ek-_EeA.woff2') format('woff2');
+      font-display: swap;
+    }
+    /* Prevent layout shift during font load */
+    html { font-synthesis: none; text-rendering: optimizeLegibility; }
+    /* Set class="dark" immediately to prevent flash */
+    html.dark body { background-color: #050505; color: #e5e2e1; }
+    html:not(.dark) body { background-color: #f4f4f5; color: #0f0f11; }
+  </style>
 </head>
 
-<body class="bg-slate-50">
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
+<body>
+  <div id="root"></div>
+  <script type="module" src="/src/main.jsx"></script>
 </body>
 
 </html>

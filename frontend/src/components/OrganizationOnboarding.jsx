@@ -21,12 +21,8 @@ export const OrganizationOnboarding = () => {
   };
 
   return (
-    <main className="relative flex min-h-screen items-center justify-center bg-cf overflow-hidden p-4">
-      {/* Background elements */}
-      <div className="pointer-events-none absolute inset-0">
-        <div className="absolute top-1/4 left-1/4 h-96 w-96 rounded-full bg-primary-DEFAULT/8 blur-3xl" />
-        <div className="absolute bottom-1/4 right-1/4 h-80 w-80 rounded-full bg-accent-violet/6 blur-3xl" />
-      </div>
+    <main className="relative flex min-h-screen items-center justify-center overflow-hidden p-4 bg-cf">
+      <div className="absolute inset-0 bg-gradient-to-br from-cf-cyan/20 via-transparent to-cf-teal/20" />
 
       <button onClick={toggle} className="absolute top-4 right-4 cf-btn-ghost p-2 rounded-full z-10">
         {theme === 'dark' ? (
@@ -45,31 +41,22 @@ export const OrganizationOnboarding = () => {
 
       <div className="w-full max-w-md animate-slide-up">
         {/* Logo */}
-        <div className="flex items-center gap-2.5 mb-8">
-          <img
-            src="/images/logo.png"
-            onError={(e) => {
-              e.target.style.display = 'none';
-              const fallback = e.target.nextSibling;
-              if (fallback) fallback.style.display = 'flex';
-            }}
-            className="h-9 w-auto max-w-[140px] object-contain"
-            alt="CloudFlow"
-          />
-          <div style={{ display: 'none' }} className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary-DEFAULT to-accent-violet text-white shadow-glow">
-            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-          </div>
-          <span className="text-lg font-bold text-cf">CloudFlow</span>
+        <div className="mb-8 flex items-center gap-3">
+          <span className="cf-logo-round h-12 w-12">
+            <img src="/images/logo.png" alt="CloudFlow" />
+          </span>
+          <span className="font-geist text-3xl font-semibold tracking-tight text-cf-cyan">CloudFlow</span>
         </div>
 
-        <h1 className="text-2xl font-bold text-cf">
-          Welcome{user?.firstName ? `, ${user.firstName}` : ''}! 👋
+        <div className="cf-section-label mb-2">// Setup workspace</div>
+        <h1 className="font-geist text-2xl font-semibold text-cf tracking-tight">
+          Welcome{user?.firstName ? `, ${user.firstName}` : ''}!
         </h1>
         <p className="mt-2 text-sm text-cf-2 mb-8">
           Create your first organization to start managing projects and inviting your team.
         </p>
 
-        <div className="cf-surface rounded-2xl p-6">
+        <div className="level-2-surface p-6 mt-6">
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <label className="block">
               <span className="cf-section-label mb-1.5 block">Organization name</span>

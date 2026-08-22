@@ -1,43 +1,42 @@
 import { useForm } from 'react-hook-form';
-import { useTheme } from '../hooks/useTheme.jsx';
 
 export const AuthForm = ({ isRegister, onSubmit, isSubmitting }) => {
   const { register, handleSubmit, formState: { errors } } = useForm();
 
   return (
-    <form className="space-y-5" onSubmit={handleSubmit(onSubmit)}>
+    <form className="space-y-4 sm:space-y-5" onSubmit={handleSubmit(onSubmit)}>
       {isRegister && (
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <label className="block">
-            <span className="mb-1.5 block text-xs font-semibold text-cf-2 uppercase tracking-wider">First name</span>
+            <span className="cf-section-label mb-1.5 block">First name</span>
             <input className="cf-input" placeholder="John" {...register('firstName', { required: 'Required' })} />
-            {errors.firstName && <small>{errors.firstName.message}</small>}
+            {errors.firstName && <small className="mt-1 block text-xs text-rose-500">{errors.firstName.message}</small>}
           </label>
           <label className="block">
-            <span className="mb-1.5 block text-xs font-semibold text-cf-2 uppercase tracking-wider">Last name</span>
+            <span className="cf-section-label mb-1.5 block">Last name</span>
             <input className="cf-input" placeholder="Doe" {...register('lastName', { required: 'Required' })} />
-            {errors.lastName && <small>{errors.lastName.message}</small>}
+            {errors.lastName && <small className="mt-1 block text-xs text-rose-500">{errors.lastName.message}</small>}
           </label>
         </div>
       )}
 
       <label className="block">
-        <span className="mb-1.5 block text-xs font-semibold text-cf-2 uppercase tracking-wider">Email</span>
+        <span className="cf-section-label mb-1.5 block">Email</span>
         <input className="cf-input" type="email" placeholder="you@example.com" {...register('email', { required: 'Email is required' })} />
-        {errors.email && <small>{errors.email.message}</small>}
+        {errors.email && <small className="mt-1 block text-xs text-rose-500">{errors.email.message}</small>}
       </label>
 
       <label className="block">
-        <span className="mb-1.5 block text-xs font-semibold text-cf-2 uppercase tracking-wider">Password</span>
+        <span className="cf-section-label mb-1.5 block">Password</span>
         <input className="cf-input" type="password" placeholder="••••••••" {...register('password', {
           required: 'Password is required',
           minLength: { value: 8, message: 'Minimum 8 characters' },
           ...(isRegister && { pattern: { value: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/, message: 'Needs uppercase, lowercase, and number' } })
         })} />
-        {errors.password && <small>{errors.password.message}</small>}
+        {errors.password && <small className="mt-1 block text-xs text-rose-500">{errors.password.message}</small>}
       </label>
 
-      <button className="cf-btn-primary w-full py-3 mt-2 text-base" disabled={isSubmitting}>
+      <button className="cf-btn-primary mt-2 w-full py-2.5 sm:py-2" disabled={isSubmitting}>
         {isSubmitting ? (
           <span className="flex items-center gap-2">
             <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">

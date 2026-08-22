@@ -6,7 +6,8 @@ export const ThemeProvider = ({ children }) => {
   const [theme, setTheme] = useState(() => {
     const stored = localStorage.getItem('cf-theme');
     if (stored) return stored;
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    // Default to dark — Stitch design is dark-first
+    return 'dark';
   });
 
   useEffect(() => {

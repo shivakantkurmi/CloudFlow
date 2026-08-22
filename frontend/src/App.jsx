@@ -4,6 +4,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { ProtectedRoute } from './components/ProtectedRoute.jsx';
 import { AuthPage } from './pages/AuthPage.jsx';
 import { DashboardPage } from './pages/DashboardPage.jsx';
+import { LandingPage } from './pages/LandingPage.jsx';
 import { ProjectsPage } from './pages/ProjectsPage.jsx';
 import { ProjectDetailPage } from './pages/ProjectDetailPage.jsx';
 import { connectSocket, disconnectSocket } from './services/socketClient.js';
@@ -61,12 +62,13 @@ export const App = () => {
   return (
     <Routes>
       {/* Public routes */}
+      <Route path="/" element={<LandingPage />} />
       <Route path="/login" element={<AuthPage />} />
       <Route path="/register" element={<AuthPage isRegister />} />
 
       {/* Protected routes — ProtectedRoute handles auth + org bootstrap */}
       <Route element={<ProtectedRoute />}>
-        <Route path="/" element={<ProjectsPage />} />
+        <Route path="/app" element={<ProjectsPage />} />
         <Route path="/projects/:id" element={<ProjectDetailPage />} />
         <Route path="/dashboard" element={<DashboardPage />} />
       </Route>

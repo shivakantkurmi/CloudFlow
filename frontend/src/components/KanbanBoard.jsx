@@ -6,25 +6,36 @@ import { toast } from 'react-toastify';
 import { getFriendlyErrorMessage } from '../utils/errorHandler.js';
 import { fetchTasks, moveTask } from '../store/taskSlice.js';
 
-const PRIORITY_DOT = {
-  CRITICAL: 'bg-rose-500',
-  HIGH: 'bg-orange-400',
-  MEDIUM: 'bg-amber-400',
-  LOW: 'bg-slate-400',
+/* ── Priority indicator colors ── */
+const PRIORITY_BAR = {
+  CRITICAL: 'bg-[#ffb4ab]',
+  HIGH:     'bg-orange-400',
+  MEDIUM:   'bg-amber-400',
+  LOW:      'bg-cf-3',
 };
 
-const STATUS_ACCENT = {
-  TODO: 'border-t-slate-300 dark:border-t-slate-600',
-  IN_PROGRESS: 'border-t-blue-500',
-  TESTING: 'border-t-amber-500',
-  COMPLETED: 'border-t-emerald-500',
-};
-
-const STATUS_META = {
-  TODO: { label: 'To Do', icon: '○' },
-  IN_PROGRESS: { label: 'In Progress', icon: '◑' },
-  TESTING: { label: 'Testing', icon: '◕' },
-  COMPLETED: { label: 'Done', icon: '●' },
+/* ── Column definitions ── */
+const COLUMN_META = {
+  TODO: {
+    label:    'TODO',
+    dotClass: '',
+    countClass: 'text-cf-3',
+  },
+  IN_PROGRESS: {
+    label:    'IN PROGRESS',
+    dotClass: 'bg-cf-teal',
+    countClass: 'text-cf-teal',
+  },
+  TESTING: {
+    label:    'TESTING',
+    dotClass: 'bg-amber-400',
+    countClass: 'text-amber-400',
+  },
+  COMPLETED: {
+    label:    'DONE',
+    dotClass: 'bg-cf-cyan',
+    countClass: 'text-cf-cyan',
+  },
 };
 
 const columns = [
@@ -34,48 +45,62 @@ const columns = [
   { id: 'COMPLETED' },
 ];
 
-const TaskCard = ({ task, dragHandleProps, isOverlay = false, onClick }) => (
-  <article
-    onClick={onClick}
-    {...dragHandleProps}
-    className={`task-card group ${isOverlay ? 'rotate-1 scale-105 shadow-card-hover' : ''}`}
-  >
-    <p className="text-sm font-medium text-cf leading-snug">{task.title}</p>
-
-    {task.description && (
-      <p className="mt-1.5 text-xs text-cf-3 line-clamp-2 leading-relaxed">{task.description}</p>
-    )}
-
-    {task.labels.length > 0 && (
-      <div className="mt-2.5 flex flex-wrap gap-1">
-        {task.labels.slice(0, 3).map(label => (
-          <span
-            key={label.id}
-            style={{ backgroundColor: label.color + '22', color: label.color, borderColor: label.color + '44' }}
-            className="rounded-full border px-1.5 py-px text-[10px] font-medium"
-          >
-            {label.label}
-          </span>
-        ))}
+/* ── Task card — Stitch "level-2-surface" design ── */
+const TaskCard = ({ task, dragHandleProps, isOverlay = false, onClick }) => {
+  return (
+    <article
+      onClick={onClick}
+      {...dragHandleProps}
+      className={`task-card cursor-pointer group ${isOverlay ? 'rotate-1 scale-105 opacity-90' : ''}`}
+    >
+      {/* Task ID + assignee row */}
+      <div className="mb-2 flex items-center justify-between">
+        <span className="font-technical text-[10px] text-cf-3">{task.project?.key ?? ''}–{task.id?.slice(-4)}</span>
+        {task.assignee ? (
+          <div className="cf-avatar h-4 w-4 text-[7px] shrink-0" title={`${task.assignee.firstName} ${task.assignee.lastName}`}>
+            {task.assignee.firstName[0]}
+          </div>
+        ) : (
+          <div className="h-4 w-4 rounded-full border border-cf bg-cf-elevated shrink-0" />
+        )}
       </div>
-    )}
 
-    <div className="mt-3 flex items-center justify-between gap-2">
-      <div className="flex items-center gap-1.5">
-        <span className={`h-2 w-2 rounded-full ${PRIORITY_DOT[task.priority] ?? 'bg-slate-400'}`} />
-        <span className="text-[10px] font-semibold uppercase tracking-wider text-cf-3">{task.priority}</span>
-      </div>
-      {task.assignee ? (
-        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-gradient-to-br from-primary-DEFAULT to-accent-violet text-[9px] font-bold text-white shrink-0" title={`${task.assignee.firstName} ${task.assignee.lastName}`}>
-          {task.assignee.firstName[0]}
-        </span>
-      ) : (
-        <span className="text-[10px] text-cf-3">Unassigned</span>
+      {/* Title */}
+      <p className="text-sm font-medium text-cf leading-snug line-clamp-2 mb-2">{task.title}</p>
+
+      {/* Labels */}
+      {task.labels?.length > 0 && (
+        <div className="flex flex-wrap gap-1 mb-2">
+          {task.labels.slice(0, 3).map(label => (
+            <span key={label.id} style={{ color: label.color, background: label.color + '18', border: `1px solid ${label.color}33`, borderRadius: 999 }} className="font-technical text-[9px] px-1.5 py-px">
+              {label.label}
+            </span>
+          ))}
+        </div>
       )}
-    </div>
-  </article>
-);
 
+      {/* Footer row: priority + status indicator */}
+      <div className="mt-1 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5">
+          <span className={`h-1.5 w-1.5 ${PRIORITY_BAR[task.priority] ?? 'bg-cf-3'}`} style={{ borderRadius: 1 }} />
+          <span className="font-caps text-cf-3">{task.priority}</span>
+        </div>
+        {task.status === 'IN_PROGRESS' && (
+          <span className="font-technical text-[10px] text-cf-teal flex items-center gap-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-cf-teal" />
+          </span>
+        )}
+        {task.status === 'COMPLETED' && (
+          <svg className="w-3 h-3 text-cf-cyan" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/>
+          </svg>
+        )}
+      </div>
+    </article>
+  );
+};
+
+/* ── Draggable wrapper ── */
 const DraggableTask = ({ task, onTaskSelect }) => {
   const { attributes, listeners, setNodeRef: setDraggableRef, transform, isDragging } = useDraggable({ id: task.id, data: { type: 'task', status: task.status } });
   const { setNodeRef: setDroppableRef, isOver } = useDroppable({ id: task.id, data: { type: 'task', status: task.status } });
@@ -84,8 +109,8 @@ const DraggableTask = ({ task, onTaskSelect }) => {
   return (
     <div
       ref={setNodeRef}
-      className={isOver ? 'rounded-xl ring-2 ring-primary-DEFAULT/50' : ''}
-      style={{ transform: CSS.Translate.toString(transform), opacity: isDragging ? 0.4 : 1, transition: 'opacity 0.15s' }}
+      style={{ transform: CSS.Translate.toString(transform), opacity: isDragging ? 0.3 : 1, transition: 'opacity 0.15s' }}
+      className={isOver ? 'outline outline-1 outline-cf-cyan' : ''}
       {...attributes}
     >
       <TaskCard task={task} dragHandleProps={listeners} onClick={() => onTaskSelect?.(task.id)} />
@@ -93,36 +118,42 @@ const DraggableTask = ({ task, onTaskSelect }) => {
   );
 };
 
+/* ── Kanban column — Stitch style with left border divider ── */
 const BoardColumn = ({ column, tasks, onTaskSelect }) => {
   const { setNodeRef, isOver } = useDroppable({ id: column.id, data: { type: 'column', status: column.id } });
-  const meta = STATUS_META[column.id];
+  const meta = COLUMN_META[column.id];
 
   return (
-    <section
-      ref={setNodeRef}
-      className={`kanban-col border-t-2 ${STATUS_ACCENT[column.id]} ${isOver ? 'is-over' : ''}`}
-    >
-      <div className="mb-4 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className="text-base text-cf-2">{meta.icon}</span>
-          <h3 className="text-xs font-bold uppercase tracking-wider text-cf-2">{meta.label}</h3>
+    <section ref={setNodeRef} className={`kanban-col ${isOver ? 'is-over' : ''}`}>
+      {/* Column header */}
+      <div className="kanban-col-header mb-3 flex items-center justify-between">
+        <div className={`flex items-center gap-1.5 font-caps ${meta.countClass}`}>
+          {meta.dotClass && <span className={`w-2 h-2 rounded-full ${meta.dotClass}`} />}
+          {meta.label}
         </div>
-        <span className="rounded-full bg-cf-card border border-cf px-2 py-0.5 text-xs font-semibold text-cf-3">
+        <span className="kanban-count-badge font-technical text-[11px] text-cf-3">
           {tasks.length}
         </span>
       </div>
-      <div className="space-y-2">
-        {tasks.map(task => <DraggableTask key={task.id} task={task} onTaskSelect={onTaskSelect} />)}
+
+      {/* Cards */}
+      <div className="space-y-1.5">
+        {tasks.length === 0 ? (
+          <div className="kanban-empty">Drop tasks here</div>
+        ) : (
+          tasks.map(task => <DraggableTask key={task.id} task={task} onTaskSelect={onTaskSelect} />)
+        )}
       </div>
     </section>
   );
 };
 
+/* ── Board ── */
 export const KanbanBoard = ({ projectId, onTaskSelect }) => {
   const dispatch = useDispatch();
-  const tasks = useSelector(state => state.tasks.items);
+  const tasks    = useSelector(state => state.tasks.items);
   const [activeTask, setActiveTask] = useState(null);
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
+  const sensors  = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
 
   const orderedByStatus = (status, excludingId) =>
     tasks.filter(t => t.status === status && t.id !== excludingId).sort((a, b) => a.position - b.position);
@@ -132,28 +163,29 @@ export const KanbanBoard = ({ projectId, onTaskSelect }) => {
     if (!over || active.id === over.id) return;
     const task = tasks.find(t => t.id === active.id);
     if (!task) return;
-    const overTask = tasks.find(t => t.id === over.id);
-    const targetStatus = overTask?.status ?? columns.find(c => c.id === over.id)?.id;
+    const overTask      = tasks.find(t => t.id === over.id);
+    const targetStatus  = overTask?.status ?? columns.find(c => c.id === over.id)?.id;
     if (!targetStatus) return;
-    const destination = orderedByStatus(targetStatus, task.id);
+    const destination   = orderedByStatus(targetStatus, task.id);
     const insertionIndex = overTask ? destination.findIndex(t => t.id === overTask.id) : destination.length;
-    const previous = destination[insertionIndex - 1];
-    const next = destination[insertionIndex];
-    const position = previous && next ? (previous.position + next.position) / 2 : previous ? previous.position + 1 : next ? next.position - 1 : 0;
+    const previous      = destination[insertionIndex - 1];
+    const next          = destination[insertionIndex];
+    const position      = previous && next ? (previous.position + next.position) / 2 : previous ? previous.position + 1 : next ? next.position - 1 : 0;
     try { await dispatch(moveTask({ projectId, id: task.id, status: targetStatus, position })).unwrap(); }
     catch (error) { dispatch(fetchTasks(projectId)); toast.error(getFriendlyErrorMessage(error)); }
   };
 
   return (
-    <DndContext sensors={sensors}
+    <DndContext
+      sensors={sensors}
       onDragStart={({ active }) => setActiveTask(tasks.find(t => t.id === active.id))}
       onDragEnd={onDragEnd}
       onDragCancel={() => setActiveTask(null)}
     >
-      <div className="overflow-x-auto pb-4 -mx-2 px-2">
-        <div className="flex gap-3 min-w-max lg:min-w-0 lg:grid lg:grid-cols-4">
+      <div className="-mx-2 overflow-x-auto px-2 pb-4">
+        <div className="kanban-shell flex min-w-max lg:min-w-0 lg:grid lg:grid-cols-4">
           {columns.map(col => (
-            <div key={col.id} className="w-[260px] sm:w-[280px] lg:w-auto shrink-0 lg:shrink">
+            <div key={col.id} className="w-[272px] shrink-0 sm:w-[290px] lg:w-auto lg:shrink">
               <BoardColumn column={col} tasks={orderedByStatus(col.id)} onTaskSelect={onTaskSelect} />
             </div>
           ))}
