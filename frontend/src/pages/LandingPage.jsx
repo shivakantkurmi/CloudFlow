@@ -2,6 +2,20 @@ import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTheme } from '../hooks/useTheme.jsx';
 
+const SunIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+    <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
+    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+    <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
+    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+  </svg>
+);
+
+const MoonIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+  </svg>
+);
 const NAV_ITEMS = ['Overview', 'Features', 'Modules', 'Start'];
 const Arrow = ({ left = false }) => <svg className={left ? 'rotate-180' : ''} width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>;
 const AnimatedWords = ({ text }) => <span className="word-reveal">{text.split(' ').map((word, index) => <span key={`${word}-${index}`} style={{ '--word-delay': `${index * 90}ms` }}>{word}&nbsp;</span>)}</span>;
@@ -28,7 +42,7 @@ export const LandingPage = () => {
     <header className="relative z-30 shrink-0"><div className="landing-glass flex items-center justify-between rounded-full px-2.5 py-2 sm:px-5 sm:py-2.5">
       <Link to="/" className="flex items-center gap-2.5" aria-label="CloudFlow home"><span className="cf-logo-round h-10 w-10 sm:h-11 sm:w-11"><img src="/images/logo.png" alt="" /></span><span className="hidden font-geist text-lg font-semibold tracking-tight text-cf-cyan sm:inline sm:text-xl">CloudFlow</span></Link>
       <nav className="hidden items-center gap-1 lg:flex" aria-label="Landing slides">{NAV_ITEMS.map((item, index) => <button key={item} type="button" onClick={() => showSlide(index)} className={`cf-nav-link ${activeSlide === index ? 'active' : ''}`}>{item}</button>)}</nav>
-      <div className="flex items-center gap-1.5 sm:gap-2"><button onClick={toggle} className="cf-btn-ghost px-2.5 py-1.5 text-[11px] sm:px-3 sm:text-xs" type="button">{theme === 'dark' ? 'Light' : 'Dark'}</button><Link to="/login" className="cf-btn-secondary px-2.5 py-1.5 text-[11px] sm:px-3 sm:text-xs">Sign In</Link><Link to="/register" className="cf-btn-primary px-2.5 py-1.5 text-[11px] sm:px-3 sm:text-xs">Register</Link></div>
+      <div className="flex items-center gap-1.5 sm:gap-2"><button onClick={toggle} className="cf-btn-secondary rounded-full p-2" type="button" title="Toggle theme">{theme === 'dark' ? <SunIcon /> : <MoonIcon />}</button><Link to="/login" className="cf-btn-secondary px-2.5 py-1.5 text-[11px] sm:px-3 sm:text-xs">Sign In</Link><Link to="/register" className="cf-btn-primary px-2.5 py-1.5 text-[11px] sm:px-3 sm:text-xs">Register</Link></div>
     </div></header>
     <div className="relative mt-2 min-h-0 flex-1 overflow-hidden rounded-3xl sm:mt-3" onWheel={handleWheel}>
       <section className={`landing-slide slide-overview cinematic-hero ${activeSlide === 0 ? 'is-active is-ready' : ''}`} aria-hidden={activeSlide !== 0}><div className="hero-grid" /><div className="hero-orbit hero-orbit-left" /><div className="hero-orbit hero-orbit-right" /><div className="hero-circuit hero-circuit-left"><i /><i /></div><div className="hero-circuit hero-circuit-right"><i /><i /></div><div className="relative z-10 flex h-full flex-col items-center justify-center px-4 pb-24 pt-12 text-center sm:px-8"><p className="hero-kicker">CloudFlow workspace</p><h1 className="hero-title mt-4 max-w-4xl"><AnimatedWords text="Plan with focus." /><span><AnimatedWords text="Ship with momentum." /></span></h1><p className="hero-copy mt-5 max-w-xl text-sm sm:text-base">Bring projects, tasks, and team context into one calm command center built for delivery.</p><div className="hero-actions mt-7 flex flex-wrap justify-center gap-3"><Link to="/register" className="cf-btn-primary">Get started</Link><Link to="/login" className="cf-btn-secondary">Open workspace</Link></div></div></section>
