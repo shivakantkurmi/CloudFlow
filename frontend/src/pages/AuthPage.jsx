@@ -74,16 +74,20 @@ export const AuthPage = ({ isRegister = false }) => {
       </header>
 
       <section className="relative z-10 grid w-full max-w-4xl gap-4 sm:gap-5 lg:grid-cols-2">
-        <div className="hidden lg:flex flex-col justify-end rounded-2xl border border-cf bg-cf-card p-7 shadow-elevated backdrop-blur-xl animate-fade-in">
-          <p className="cf-section-label mb-3">Creative workflow platform</p>
-          <h2 className="font-geist text-5xl font-semibold leading-[0.95] text-cf">
-            Plan Clearly.
-            <br />
-            Build Boldly.
-          </h2>
-          <p className="mt-5 max-w-sm text-cf-2">
-            CloudFlow keeps projects, tasks, discussions, and delivery in one visual command center.
-          </p>
+        <div className="hidden lg:flex flex-col justify-end rounded-2xl border border-cf shadow-elevated animate-fade-in relative overflow-hidden p-8">
+          <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1522071820081-009f0129c71c?q=80&w=2400&auto=format&fit=crop')] bg-cover bg-center transition-transform duration-1000 hover:scale-105" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+          <div className="relative z-10">
+            <p className="font-geist text-sm font-semibold tracking-widest text-cf-cyan uppercase mb-3">Creative workflow platform</p>
+            <h2 className="font-geist text-5xl font-semibold leading-[0.95] text-white">
+              Plan Clearly.
+              <br />
+              Build Boldly.
+            </h2>
+            <p className="mt-5 max-w-sm text-white/80">
+              CloudFlow keeps projects, tasks, discussions, and delivery in one visual command center.
+            </p>
+          </div>
         </div>
 
         <div className={`auth-card-enter auth-card--${isRegister ? 'register' : 'login'} ${modeReady ? 'is-mode-ready' : ''} level-2-surface p-5 sm:p-6 lg:p-7`}>
