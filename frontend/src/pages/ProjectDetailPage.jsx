@@ -6,6 +6,7 @@ import { toast } from 'react-toastify';
 import { getFriendlyErrorMessage } from '../utils/errorHandler.js';
 import { addProjectMember, deleteProject, fetchMembers, fetchProject, removeProjectMember, updateProject } from '../store/projectSlice.js';
 import { fetchTasks } from '../store/taskSlice.js';
+import { setCurrentOrg } from '../store/orgSlice.js';
 import { TaskManager } from '../components/TaskManager.jsx';
 import { KanbanBoard } from '../components/KanbanBoard.jsx';
 import { TaskDetailsModal } from '../components/TaskDetailsModal.jsx';
@@ -60,7 +61,12 @@ export const ProjectDetailPage = () => {
   }, [location.search, navigate, id]);
 
   useEffect(() => {
-    dispatch(fetchProject(id)).unwrap().catch(err => { toast.error(getFriendlyErrorMessage(err)); navigate('/app'); });
+    dispatch(fetchProject(id)).unwrap().then(project => {
+      if (project && project.organizationId) {
+        // Sync the workspace without waiting for orgs to load
+        dispatch(setCurrentOrg({ id: project.organizationId, name: project.organization?.name || 'Workspace' }));
+      }
+    }).catch(err => { toast.error(getFriendlyErrorMessage(err)); navigate('/app'); });
     dispatch(fetchMembers(id)).unwrap().catch(() => {});
     dispatch(fetchTasks(id)).unwrap().catch(() => {});
   }, [dispatch, id, navigate]);

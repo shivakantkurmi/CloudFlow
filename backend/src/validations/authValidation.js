@@ -19,5 +19,3 @@ export const registerValidation = [
 ];
 
 export const loginValidation = [body('email').isEmail().normalizeEmail(), body('password').isString().notEmpty()];
-
-export const refreshValidation = [body('refreshToken').isString().notEmpty()];

@@ -26,15 +26,15 @@ const Spinner = () => (
 export const ProtectedRoute = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const { accessToken, initialized, isLoading } = useSelector((state) => state.auth);
+  const { user, initialized, isLoading } = useSelector((state) => state.auth);
   const { items: orgs, status: orgStatus } = useSelector((state) => state.orgs);
 
-  // If we have a stored token but haven't verified it yet, do it now.
-  // fetchCurrentUser will fail gracefully if the token is expired — the
+  // If we have a stored user but haven't verified the session yet, do it now.
+  // fetchCurrentUser will fail gracefully if the cookie token is expired — the
   // apiClient interceptor will attempt a token refresh and, if that fails,
   // call forceLogout() which clears the session + redirects to /login.
   useEffect(() => {
-    if (accessToken && !initialized && !isLoading) {
+    if (user && !initialized && !isLoading) {
       dispatch(fetchCurrentUser())
         .unwrap()
         .catch(() => {
@@ -44,20 +44,20 @@ export const ProtectedRoute = () => {
           dispatch(clearSession());
         });
     }
-  }, [accessToken, initialized, isLoading, dispatch]);
+  }, [user, initialized, isLoading, dispatch]);
 
   // Fetch orgs once auth is ready
   useEffect(() => {
-    if (accessToken && initialized && orgStatus === 'idle') {
+    if (user && initialized && orgStatus === 'idle') {
       dispatch(fetchOrganizations());
     }
-  }, [accessToken, initialized, orgStatus, dispatch]);
+  }, [user, initialized, orgStatus, dispatch]);
 
   // Show spinner while bootstrapping
   if (!initialized || isLoading) return <Spinner />;
 
   // No valid session → go to login
-  if (!accessToken) return <Navigate to="/login" replace />;
+  if (!user) return <Navigate to="/login" replace />;
 
   // Orgs still loading → spinner
   if (orgStatus === 'loading' || orgStatus === 'idle') return <Spinner />;

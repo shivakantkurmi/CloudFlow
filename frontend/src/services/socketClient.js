@@ -2,10 +2,10 @@ import { io } from 'socket.io-client';
 
 let socket;
 const projectRooms = new Set();
-export const connectSocket = (token) => {
-  if (socket?.connected && socket.auth?.token === token) return socket;
+export const connectSocket = () => {
+  if (socket?.connected) return socket;
   socket?.disconnect();
-  socket = io(import.meta.env.VITE_SOCKET_URL ?? window.location.origin, { auth: { token }, transports: ['websocket', 'polling'] });
+  socket = io(import.meta.env.VITE_SOCKET_URL ?? window.location.origin, { withCredentials: true, transports: ['websocket', 'polling'] });
   socket.on('connect', () => projectRooms.forEach((projectId) => socket.emit('project:join', projectId)));
   return socket;
 };

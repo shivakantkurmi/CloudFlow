@@ -3,6 +3,7 @@ import {
   createOrganization,
   getUserOrganizations,
   getOrganization,
+  deleteOrganization,
   addOrganizationMember,
   removeOrganizationMember,
   updateOrganizationMemberRole,
@@ -18,7 +19,8 @@ router.route('/')
   .get(getUserOrganizations);
 
 router.route('/:id')
-  .get(getOrganization);
+  .get(getOrganization)
+  .delete(deleteOrganization);
 
 router.route('/:id/members')
   .post(addOrganizationMember);

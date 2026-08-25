@@ -3,14 +3,9 @@ import { getStore } from '../store/injectStore.js';
 import { clearSession, setTokens } from '../store/authSlice.js';
 import { toast } from 'react-toastify';
 
-const apiClient = axios.create({ baseURL: import.meta.env.VITE_API_URL ?? '/api' });
-
-// ── Request: attach access token ──────────────────────────────────
-apiClient.interceptors.request.use((config) => {
-  const store = getStore();
-  const token = store?.getState()?.auth?.accessToken;
-  if (token) config.headers.Authorization = `Bearer ${token}`;
-  return config;
+const apiClient = axios.create({ 
+  baseURL: import.meta.env.VITE_API_URL ?? '/api',
+  withCredentials: true
 });
 
 // ── Response: transparent token refresh + session invalidation ───
@@ -55,24 +50,17 @@ apiClient.interceptors.response.use(
       }
 
       original._retry = true;
-      const store = getStore();
-      const refreshToken = store?.getState()?.auth?.refreshToken;
-
-      if (!refreshToken) {
-        forceLogout('You are not authenticated. Please sign in.');
-        return Promise.reject(error);
-      }
 
       try {
         // Deduplicate concurrent refresh attempts
         refreshPromise ??= axios
-          .post(`${apiClient.defaults.baseURL}/auth/refresh`, { refreshToken })
+          .post(`${apiClient.defaults.baseURL}/auth/refresh`, {}, { withCredentials: true })
           .then(({ data }) => data.data)
           .finally(() => { refreshPromise = null; });
 
         const data = await refreshPromise;
+        const store = getStore();
         if (store) store.dispatch(setTokens(data));
-        original.headers.Authorization = `Bearer ${data.accessToken}`;
         return apiClient(original);
       } catch {
         forceLogout('Your session has expired. Please sign in again.');

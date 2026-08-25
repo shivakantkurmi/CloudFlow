@@ -1,13 +1,21 @@
 import { useState, useRef, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { clearSession } from '../store/authSlice.js';
+import { clearSession, logout } from '../store/authSlice.js';
 import { markNotificationRead, markAllNotificationsRead } from '../store/notificationSlice.js';
 import { globalSearch } from '../services/searchService.js';
-import { setCurrentOrg } from '../store/orgSlice.js';
+import { setCurrentOrg, deleteOrganization } from '../store/orgSlice.js';
 import { useTheme } from '../hooks/useTheme.jsx';
+import { CreateOrgModal } from './CreateOrgModal.jsx';
+import { toast } from 'react-toastify';
 
 /* ── Icons ── */
+const TrashIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+    <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+  </svg>
+);
+
 const SunIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
     <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
@@ -99,6 +107,8 @@ export const TopNavbar = () => {
   const [isSearching,       setIsSearching]         = useState(false);
   const [showSearch,        setShowSearch]          = useState(false);
   const [showMobileSearch,  setShowMobileSearch]    = useState(false);
+  const [showCreateOrg,     setShowCreateOrg]       = useState(false);
+  const [showOwnedOnly,     setShowOwnedOnly]       = useState(false);
 
   const notifRef  = useRef(null);
   const profileRef= useRef(null);
@@ -107,6 +117,7 @@ export const TopNavbar = () => {
   const mobileSearchRef = useRef(null);
 
   const unreadCount = notifs.filter(n => !n.read).length;
+  const displayOrgs = showOwnedOnly ? orgs.filter(org => org.members?.[0]?.role === 'OWNER') : orgs;
 
   /* Debounced search */
   useEffect(() => {
@@ -136,7 +147,10 @@ export const TopNavbar = () => {
   /* Close mobile search on route change */
   useEffect(() => { setShowMobileSearch(false); }, [location.pathname]);
 
-  const handleLogout = () => { dispatch(clearSession()); navigate('/login'); };
+  const handleLogout = async () => { 
+    await dispatch(logout());
+    navigate('/login'); 
+  };
   const initials = `${user?.firstName?.[0] ?? ''}${user?.lastName?.[0] ?? ''}`;
   const clearSearch = () => { setSearchQuery(''); setSearchResults(null); setShowSearch(false); setShowMobileSearch(false); };
 
@@ -161,7 +175,7 @@ export const TopNavbar = () => {
 
           {/* Org switcher */}
           {currentOrg && (
-            <div className="relative shrink-0 hidden xs:block" ref={orgRef}>
+            <div className="relative shrink-0 block" ref={orgRef}>
               <button
                 id="org-switcher-btn"
                 onClick={() => setShowOrgs(!showOrgs)}
@@ -174,28 +188,71 @@ export const TopNavbar = () => {
               </button>
 
               {showOrgs && (
-                <div className="absolute left-0 mt-1 w-56 level-2-surface overflow-hidden animate-scale-in z-50">
-                  <div className="px-3 pt-3 pb-1.5 border-b border-cf">
+                <div className="absolute left-0 mt-1 w-64 level-2-surface overflow-hidden animate-scale-in z-50 shadow-elevated">
+                  <div className="flex items-center justify-between px-3 pt-3 pb-1.5 border-b border-cf">
                     <p className="cf-section-label">Workspace</p>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setShowOwnedOnly(!showOwnedOnly); }}
+                      className={`text-[10px] font-technical uppercase tracking-wider px-1.5 py-0.5 rounded transition-colors border ${showOwnedOnly ? 'bg-cf-cyan text-cf-card border-cf-cyan' : 'text-cf-3 border-transparent hover:border-cf-strong hover:text-cf hover:bg-cf-hover'}`}
+                      title="Filter by workspaces you own"
+                    >
+                      Owned Only
+                    </button>
                   </div>
                   <div className="py-1">
-                    {orgs.map(org => (
-                      <button
-                        key={org.id}
-                        onClick={() => { dispatch(setCurrentOrg(org.id)); setShowOrgs(false); navigate('/app'); }}
-                        className={`flex w-full items-center gap-2.5 px-3 py-2 text-sm text-left transition-colors hover:bg-cf-hover ${currentOrg.id === org.id ? 'text-cf-cyan font-technical' : 'text-cf'}`}
+                    {displayOrgs.length === 0 ? (
+                      <div className="px-4 py-3 text-xs text-cf-3 text-center">No workspaces found.</div>
+                    ) : displayOrgs.map(org => {
+                      const isOwner = org.members?.[0]?.role === 'OWNER';
+                      return (
+                        <div key={org.id} className="group relative flex w-full items-center px-3 py-2 transition-colors hover:bg-cf-hover">
+                          <button
+                            onClick={() => { dispatch(setCurrentOrg(org.id)); setShowOrgs(false); navigate('/app'); }}
+                            className={`flex flex-1 items-center gap-2.5 text-sm text-left ${currentOrg.id === org.id ? 'text-cf-cyan font-technical' : 'text-cf'}`}
+                          >
+                            <span className={`flex h-6 w-6 shrink-0 items-center justify-center text-[10px] font-bold text-cf-base font-technical ${currentOrg.id === org.id ? 'bg-cf-cyan' : 'bg-cf-teal'}`} style={{ borderRadius: 2 }}>
+                              {org.name[0]}
+                            </span>
+                            <span className="flex-1 truncate pr-8">{org.name}</span>
+                            {currentOrg.id === org.id && (
+                              <svg className="absolute right-3 top-1/2 -translate-y-1/2 w-3 h-3 text-cf-cyan shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/>
+                              </svg>
+                            )}
+                          </button>
+                          {isOwner && (
+                            <button
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                if (window.confirm(`Are you sure you want to permanently delete the workspace "${org.name}"? This action cannot be undone.`)) {
+                                  try {
+                                    await dispatch(deleteOrganization(org.id)).unwrap();
+                                    toast.success('Workspace deleted.');
+                                  } catch (err) {
+                                    toast.error(err.message || 'Failed to delete workspace');
+                                  }
+                                }
+                              }}
+                              title="Delete Workspace"
+                              className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-cf-3 hover:text-[#ffb4ab] opacity-0 group-hover:opacity-100 transition-opacity bg-cf-card/80 backdrop-blur-sm rounded"
+                            >
+                              <TrashIcon />
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
+                    <div className="border-t border-cf mt-1 pt-1">
+                      <button 
+                        onClick={() => { setShowCreateOrg(true); setShowOrgs(false); }} 
+                        className="flex w-full items-center gap-2.5 px-3 py-2 text-sm text-left transition-colors hover:bg-cf-hover text-cf-cyan"
                       >
-                        <span className={`flex h-6 w-6 shrink-0 items-center justify-center text-[10px] font-bold text-cf-base font-technical ${currentOrg.id === org.id ? 'bg-cf-cyan' : 'bg-cf-teal'}`} style={{ borderRadius: 2 }}>
-                          {org.name[0]}
+                        <span className="flex h-6 w-6 shrink-0 items-center justify-center text-[14px] font-bold text-cf-base font-technical bg-cf-cyan" style={{ borderRadius: 2 }}>
+                          +
                         </span>
-                        <span className="flex-1 truncate">{org.name}</span>
-                        {currentOrg.id === org.id && (
-                          <svg className="w-3 h-3 text-cf-cyan shrink-0" viewBox="0 0 20 20" fill="currentColor">
-                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/>
-                          </svg>
-                        )}
+                        <span className="flex-1 truncate font-technical">Create Workspace</span>
                       </button>
-                    ))}
+                    </div>
                   </div>
                 </div>
               )}
@@ -317,7 +374,7 @@ export const TopNavbar = () => {
 
                   {/* Mobile org switcher */}
                   {currentOrg && orgs.length > 1 && (
-                    <div className="block xs:hidden border-b border-cf py-1">
+                    <div className="block sm:hidden border-b border-cf py-1">
                       <div className="px-3 pt-2 pb-1">
                         <p className="cf-section-label">Switch Workspace</p>
                       </div>
@@ -392,6 +449,8 @@ export const TopNavbar = () => {
           </div>
         </div>
       )}
+
+      <CreateOrgModal isOpen={showCreateOrg} onClose={() => setShowCreateOrg(false)} />
     </>
   );
 };

@@ -10,6 +10,17 @@ export const createOrganization = async (req, res, next) => {
 
     if (!name) throw new AppError('Organization name is required', 400);
 
+    const ownedOrgsCount = await prisma.organizationMember.count({
+      where: {
+        userId,
+        role: 'OWNER',
+      },
+    });
+
+    if (ownedOrgsCount >= 5) {
+      throw new AppError('You cannot create more than 5 workspaces.', 403, 'WORKSPACE_LIMIT_REACHED');
+    }
+
     const org = await prisma.organization.create({
       data: {
         name,
@@ -32,7 +43,17 @@ export const getUserOrganizations = async (req, res, next) => {
   try {
     const userId = req.user.id;
     const orgs = await prisma.organization.findMany({
-      where: { members: { some: { userId } } },
+      where: {
+        AND: [
+          { members: { some: { userId } } },
+          {
+            OR: [
+              { members: { some: { userId, role: { in: ['OWNER', 'ADMIN'] } } } },
+              { projects: { some: { status: { not: 'DELETED' }, members: { some: { userId } } } } }
+            ]
+          }
+        ]
+      },
       include: {
         members: { where: { userId }, select: { role: true, userId: true } },
         _count: { select: { members: true, projects: true } },
@@ -62,6 +83,42 @@ export const getOrganization = async (req, res, next) => {
 
     if (!org) throw new AppError('Organization not found', 404);
     respond(res, 200, org, 'Organization retrieved.');
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const deleteOrganization = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+
+    const member = await prisma.organizationMember.findUnique({
+      where: { organizationId_userId: { organizationId: id, userId } },
+    });
+
+    if (!member || member.role !== 'OWNER') {
+      throw new AppError('Only the organization owner can delete the workspace', 403);
+    }
+
+    const ownedOrgsCount = await prisma.organizationMember.count({
+      where: { userId, role: 'OWNER' },
+    });
+
+    if (ownedOrgsCount <= 1) {
+      throw new AppError('You must have at least one workspace. Cannot delete your only workspace.', 400);
+    }
+
+    const activeProjectsCount = await prisma.project.count({
+      where: { organizationId: id, status: { not: 'DELETED' } },
+    });
+
+    if (activeProjectsCount > 0) {
+      throw new AppError(`Cannot delete workspace. There are ${activeProjectsCount} active project(s) inside it. Please delete them first.`, 400);
+    }
+
+    await prisma.organization.delete({ where: { id } });
+    respond(res, 200, { id }, 'Organization deleted successfully.');
   } catch (error) {
     next(error);
   }

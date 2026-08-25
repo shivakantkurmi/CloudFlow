@@ -14,22 +14,22 @@ import { fetchNotifications, receiveNotification } from './store/notificationSli
 
 export const App = () => {
   const dispatch = useDispatch();
-  const { accessToken, initialized } = useSelector((state) => state.auth);
+  const { user, initialized } = useSelector((state) => state.auth);
 
   // Fetch notifications once authenticated
   useEffect(() => {
-    if (accessToken && initialized) {
+    if (user && initialized) {
       dispatch(fetchNotifications());
     }
-  }, [dispatch, accessToken, initialized]);
+  }, [dispatch, user, initialized]);
 
   // Real-time socket connection
   useEffect(() => {
-    if (!accessToken) {
+    if (!user) {
       disconnectSocket();
       return undefined;
     }
-    const socket = connectSocket(accessToken);
+    const socket = connectSocket();
     const upsert = (task) => dispatch(upsertRealtimeTask(task));
     const remove = (task) => dispatch(removeRealtimeTask(task));
     const onCommentAdded = (comment) => dispatch(receiveComment(comment));
@@ -57,7 +57,7 @@ export const App = () => {
       socket.off('attachment:deleted', onAttachmentDeleted);
       socket.off('notification:new', onNotification);
     };
-  }, [dispatch, accessToken]);
+  }, [dispatch, user]);
 
   return (
     <Routes>

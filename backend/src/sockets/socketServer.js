@@ -1,5 +1,6 @@
 import { prisma } from '../config/prisma.js';
 import { verifyAccessToken } from '../utils/tokenUtils.js';
+import cookie from 'cookie';
 
 let io;
 
@@ -32,7 +33,10 @@ const canJoinProject = async (projectId, auth) => {
 export const initializeSockets = (socketServer) => {
   io = socketServer;
   io.use((socket, next) => {
-    const token = socket.handshake.auth?.token;
+    const cookieHeader = socket.handshake.headers.cookie;
+    if (!cookieHeader) return next(new Error('Authentication required.'));
+    const cookies = cookie.parse(cookieHeader);
+    const token = cookies.accessToken;
     if (!token) return next(new Error('Authentication required.'));
     try {
       socket.auth = verifyAccessToken(token);

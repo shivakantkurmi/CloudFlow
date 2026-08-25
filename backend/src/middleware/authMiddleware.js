@@ -2,8 +2,8 @@ import { AppError } from '../utils/AppError.js';
 import { verifyAccessToken } from '../utils/tokenUtils.js';
 
 export const authenticate = (req, _res, next) => {
-  const [scheme, token] = (req.headers.authorization ?? '').split(' ');
-  if (scheme !== 'Bearer' || !token) {
+  const token = req.cookies?.accessToken;
+  if (!token) {
     return next(new AppError('Authentication is required.', 401, 'UNAUTHORIZED'));
   }
 
