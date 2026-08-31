@@ -5,7 +5,8 @@ import { AppError } from '../utils/AppError.js';
 const respond = (res, status, data, message) => res.status(status).json({ success: true, data, message });
 
 const setAuthCookies = (res, accessToken, refreshToken) => {
-  const cookieOptions = { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', path: '/' };
+  const isProd = process.env.NODE_ENV === 'production';
+  const cookieOptions = { httpOnly: true, secure: isProd, sameSite: isProd ? 'none' : 'lax', path: '/' };
   res.cookie('accessToken', accessToken, cookieOptions);
   res.cookie('refreshToken', refreshToken, cookieOptions);
 };

@@ -17,8 +17,10 @@ export const env = {
   nodeEnv: process.env.NODE_ENV ?? 'development',
   port: Number(process.env.PORT ?? 5000),
 
-  // CORS
-  corsOrigin: process.env.CORS_ORIGIN ?? 'http://localhost:5173',
+  // CORS — supports a single origin or comma-separated list
+  corsOrigin: process.env.CORS_ORIGIN
+    ? process.env.CORS_ORIGIN.split(',').map((o) => o.trim())
+    : ['http://localhost:5173'],
 
   // Database
   databaseUrl: process.env.DATABASE_URL,
