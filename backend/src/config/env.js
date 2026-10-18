@@ -39,4 +39,9 @@ export const env = {
 
   // Uploads
   uploadDir: process.env.UPLOAD_DIR ?? './uploads',
+
+  // Keep-Alive / Anti-Sleep Configuration
+  keepAliveEnabled: process.env.KEEP_ALIVE_ENABLED !== 'false',
+  keepAliveUrl: process.env.KEEP_ALIVE_URL ?? (process.env.RENDER_EXTERNAL_URL ? `${process.env.RENDER_EXTERNAL_URL}/health` : null),
+  keepAliveIntervalMinutes: Number(process.env.KEEP_ALIVE_INTERVAL_MINUTES ?? 10),
 };

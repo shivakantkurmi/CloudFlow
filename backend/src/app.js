@@ -12,16 +12,20 @@ import { taskRouter } from './routes/taskRoutes.js';
 import { attachmentRouter, commentRouter } from './routes/collaborationRoutes.js';
 import { notificationRouter } from './routes/notificationRoutes.js';
 import { searchRouter } from './routes/searchRoutes.js';
+import { healthRouter } from './routes/healthRoutes.js';
 import { dashboardRouter } from './routes/dashboardRoutes.js';
-
 
 export const app = express();
 app.use(helmet());
 app.use(cors({ origin: env.corsOrigin, credentials: true }));
 app.use(express.json({ limit: '1mb' }));
 app.use(cookieParser());
+
+// Health & Keep-Alive endpoints (placed before rate limiter so pingers are never throttled)
+app.use('/health', healthRouter);
+app.use('/api/health', healthRouter);
+
 app.use(rateLimit({ windowMs: env.rateLimitWindowMs, limit: env.rateLimitMax, standardHeaders: 'draft-7', legacyHeaders: false }));
-app.get('/health', (_req, res) => res.status(200).json({ success: true, data: { status: 'ok' } }));
 app.use('/api/auth', authRouter);
 app.use('/api/orgs', orgRouter);
 app.use('/api/projects', projectRouter);
